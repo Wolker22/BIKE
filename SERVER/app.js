@@ -1,9 +1,9 @@
 const express = require("express");
 const http = require("http");
 const WebSocket = require("ws");
-const path = require("path");
 const locationsRouter = require("./routes/locations");
 const geofenceRouter = require("./routes/geofence");
+const path = require("path"); // Importar el módulo 'path' de Node.js
 
 const app = express();
 const server = http.createServer(app);
@@ -11,18 +11,15 @@ const wss = new WebSocket.Server({ server });
 
 let clients = {};
 
-// Middleware para parsear JSON
 app.use(express.json());
 
-// Rutas API
+// Configurar Express para servir archivos estáticos desde el directorio "client"
+app.use("/client", express.static(path.join(__dirname, "client")));
+
+// Utilizar los routers para las rutas '/locations' y '/geofence'
 app.use("/locations", locationsRouter);
 app.use("/geofence", geofenceRouter);
 
-// Servir las aplicaciones web
-app.use("/client", express.static(path.join(__dirname, '../client')));
-app.use("/company", express.static(path.join(__dirname, '../company')));
-
-// WebSocket server
 wss.on("connection", (ws) => {
   ws.on("message", (message) => {
     const parsedMessage = JSON.parse(message);
@@ -42,14 +39,15 @@ wss.on("connection", (ws) => {
   });
 });
 
-// Endpoint para manejar sanciones de geocerca
 app.post("/geofence/penalties", async (req, res) => {
   const { coords } = req.body;
+  // Aquí se puede agregar la lógica para calcular las sanciones basadas en las coordenadas de la geocerca
   const penalties = calculatePenaltiesForUsers(coords);
   res.status(200).json(penalties);
 });
 
 function calculatePenaltiesForUsers(coords) {
+  // Supongamos que se obtiene una lista de usuarios con sus ubicaciones actuales
   const users = getUsersWithinGeofence(coords);
   const penalties = users.map((user) => ({
     username: user.username,
@@ -66,6 +64,7 @@ function calculatePenaltiesForUsers(coords) {
 }
 
 function getUsersWithinGeofence(coords) {
+  // Esta función debería implementar la lógica para obtener los usuarios dentro de la geocerca
   return [
     { username: "usuario1", location: { lat: 37.914954, lng: -4.716284 } },
     // Más usuarios...
@@ -73,6 +72,6 @@ function getUsersWithinGeofence(coords) {
 }
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+server.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
