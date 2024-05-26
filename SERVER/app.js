@@ -3,7 +3,7 @@ const http = require("http");
 const WebSocket = require("ws");
 const locationsRouter = require("./routes/locations");
 const geofenceRouter = require("./routes/geofence");
-const path = require("path"); // Importar el módulo 'path' de Node.js
+const path = require("path");
 
 const app = express();
 const server = http.createServer(app);
@@ -13,8 +13,9 @@ let clients = {};
 
 app.use(express.json());
 
-// Configurar Express para servir archivos estáticos desde el directorio "client"
-app.use("/client", express.static(path.join(__dirname, "client")));
+// Configurar Express para servir archivos estáticos desde los directorios "client" y "company"
+app.use("/client", express.static(path.join(__dirname, "../client")));
+app.use("/company", express.static(path.join(__dirname, "../company")));
 
 // Utilizar los routers para las rutas '/locations' y '/geofence'
 app.use("/locations", locationsRouter);
