@@ -1,0 +1,23 @@
+/* Estilos para la pantalla de agradecimiento */
+.thank-you-screen {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #fff;
+    text-align: center;
+  }
+  
+  .thank-you-screen h1 {
+    font-size: 2.5em;
+    margin-bottom: 20px;
+    color: #007bff;
+  }
+  
+  .thank-you-screen p {
+    font-size: 1.2em;
+    margin: 10px 0;
+    color: #555;
+  }
+  

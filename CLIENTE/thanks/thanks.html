@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gracias por usar nuestro servicio</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="thank-you-screen">
+  <h1>Gracias por usar nuestro servicio</h1>
+  <p>Esperamos que hayas disfrutado de tu experiencia.</p>
+  <p>Por favor, vuelve pronto.</p>
+
+  <script>
+    // Evitar retroceder en el historial del navegador
+    history.pushState(null, null, location.href);
+    window.onpopstate = function(event) {
+      history.go(1);
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geofencing Manager</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div id="search-container">
+      <input type="text" id="place-input" class="input" placeholder="Buscar un lugar...">
+      <button id="geofence-button" class="button">Definir Geofence</button>
+    </div>
+
+    <div id="map"></div>
+
+    <div id="user-list-container">
+      <h2>Usuarios Conectados:</h2>
+      <ul id="user-list"></ul>
+    </div>
+  </div>
+
+  <script src="./main.js"></script>
+  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDELHfVXVoMrugwiLeeh7dN3PYUoe9oH2Y&callback=initMap&libraries=places,drawing"></script>
+</body>
+</html>
