@@ -1,13 +1,25 @@
+const fs = require('fs');
 const express = require("express");
 const http = require("http");
+const https = require("https");
 const WebSocket = require("ws");
 const locationsRouter = require("./routes/locations");
 const geofenceRouter = require("./routes/geofence");
 const path = require("path");
 
 const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+
+// Configurar certificados SSL
+const privateKey = fs.readFileSync('/etc/letsencrypt/live/bikely.mooo.com/privkey.pem', 'utf8');
+const certificate = fs.readFileSync('/etc/letsencrypt/live/bikely.mooo.com/cert.pem', 'utf8');
+const ca = fs.readFileSync('/etc/letsencrypt/live/bikely.mooo.com/chain.pem', 'utf8');
+
+const credentials = {key: privateKey, cert: certificate, ca: ca};
+
+const httpServer = http.createServer(app);
+const httpsServer = https.createServer(credentials, app);
+
+const wss = new WebSocket.Server({ server: httpsServer });
 
 let clients = {};
 
@@ -20,6 +32,14 @@ app.use("/company", express.static(path.join(__dirname, "../company")));
 // Utilizar los routers para las rutas '/locations' y '/geofence'
 app.use("/locations", locationsRouter);
 app.use("/geofence", geofenceRouter);
+
+// Redirigir HTTP a HTTPS
+app.use((req, res, next) => {
+  if (!req.secure) {
+    return res.redirect(`https://${req.headers.host}${req.url}`);
+  }
+  next();
+});
 
 wss.on("connection", (ws) => {
   ws.on("message", (message) => {
@@ -72,7 +92,13 @@ function getUsersWithinGeofence(coords) {
   ];
 }
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+const HTTP_PORT = 3000;
+const HTTPS_PORT = 3443;
+
+httpServer.listen(HTTP_PORT, () => {
+  console.log(`HTTP Server running on port ${HTTP_PORT}`);
+});
+
+httpsServer.listen(HTTPS_PORT, () => {
+  console.log(`HTTPS Server running on port ${HTTPS_PORT}`);
 });
