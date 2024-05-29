@@ -1,57 +1,111 @@
-const express = require('express');
-const https = require('https');
-const fs = require('fs');
-const WebSocket = require('ws');
-const path = require('path');
-const locationsRouter = require('./routes/locations');
-const geofenceRouter = require('./routes/geofence');
+const express = require("express");
+const https = require("https");
+const fs = require("fs");
+const WebSocket = require("ws");
+const path = require("path");
+const locationsRouter = require("./routes/locations");
+const geofenceRouter = require("./routes/geofence");
 const connectDB = require('./config/db');
 
-const app = express();
-
-// Configuración para servir archivos estáticos (si es necesario)
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Configuración para las rutas de la aplicación
-app.use('/locations', locationsRouter);
-app.use('/geofence', geofenceRouter);
-
-// Configuración para el servidor WebSocket
-const wss = new WebSocket.Server({ noServer: true });
-
-wss.on('connection', (ws) => {
-  // Manejar la conexión WebSocket
-});
-
-// Configuración para el servidor HTTPS
-const privateKeyPath = '/etc/letsencrypt/live/bikely.mooo.com/privkey.pem';
-const certificatePath = '/etc/letsencrypt/live/bikely.mooo.com/fullchain.pem';
+const privateKeyPath = "/etc/letsencrypt/live/bikely.mooo.com/privkey.pem";
+const certificatePath = "/etc/letsencrypt/live/bikely.mooo.com/fullchain.pem";
 
 const credentials = {
-  key: fs.readFileSync(privateKeyPath, 'utf8'),
-  cert: fs.readFileSync(certificatePath, 'utf8'),
+  key: fs.readFileSync(privateKeyPath, "utf8"),
+  cert: fs.readFileSync(certificatePath, "utf8")
 };
 
-const httpsServer = https.createServer(credentials, app);
+const app = express();
+const server = https.createServer(credentials, app);
+const wss = new WebSocket.Server({ noServer: true }); // Crear el servidor WebSocket sin un servidor HTTP
 
-httpsServer.on('upgrade', (request, socket, head) => {
-  wss.handleUpgrade(request, socket, head, (ws) => {
-    wss.emit('connection', ws, request);
-  });
-});
+let clients = {};
 
-// Conexión a la base de datos
-connectDB()
-  .then(() => {
+(async () => {
+  try {
+    await connectDB();
     console.log('MongoDB connected...');
 
-    // Escuchar en el puerto 3000
-    const PORT = process.env.PORT || 3000;
-    httpsServer.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+    app.use(express.json());
+    app.use("/client", express.static(path.join(__dirname, "../client")));
+    app.use("/company", express.static(path.join(__dirname, "../company")));
+    app.use("/locations", locationsRouter);
+    app.use("/geofence", geofenceRouter);
+
+    wss.on("connection", (ws) => {
+      ws.on("message", (message) => {
+        const parsedMessage = JSON.parse(message);
+        if (parsedMessage.type === "register") {
+          clients[parsedMessage.username] = ws;
+        }
+      });
+
+      ws.on("close", () => {
+        for (const username in clients) {
+          if (clients[username] === ws) {
+            delete clients[username];
+            break;
+          }
+        }
+      });
     });
-  })
-  .catch((err) => {
+
+    server.on('upgrade', (request, socket, head) => {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+    });
+
+    app.post("/geofence/penalties", async (req, res) => {
+      const { coords } = req.body;
+      const penalties = calculatePenaltiesForUsers(coords);
+      res.status(200).json(penalties);
+    });
+
+    function calculatePenaltiesForUsers(coords) {
+      const users = getUsersWithinGeofence(coords);
+      const penalties = users.map((user) => ({
+        username: user.username,
+        reason: "Dentro de una geocerca prohibida",
+      }));
+
+      penalties.forEach((penalty) => {
+        if (clients[penalty.username]) {
+          clients[penalty.username].send(JSON.stringify({ type: "penalty", data: penalty }));
+        }
+      });
+
+      return penalties;
+    }
+
+    function getUsersWithinGeofence(coords) {
+      return [
+        { username: "usuario1", location: { lat: 37.914954, lng: -4.716284 } },
+      ];
+    }
+
+    // Nueva ruta para manejar la ubicación
+    app.post("/company/location", (req, res) => {
+      const { location, username } = req.body;
+      console.log("Coordenadas recibidas:", location);
+      console.log("Usuario:", username);
+      res.sendStatus(200);
+    });
+
+    // Escuchar en el puerto 3000 para Express
+    const PORT_EXPRESS = process.env.PORT_EXPRESS || 3000;
+    app.listen(PORT_EXPRESS, () => {
+      console.log(`Express server running on port ${PORT_EXPRESS}`);
+    });
+
+    // Escuchar en el puerto 443 para HTTPS
+    const PORT_HTTPS = 443;
+    server.listen(PORT_HTTPS, () => {
+      console.log(`HTTPS server running on port ${PORT_HTTPS}`);
+    });
+
+  } catch (err) {
     console.error('Error connecting to MongoDB:', err.message);
     process.exit(1);
-  });
+  }
+})();
