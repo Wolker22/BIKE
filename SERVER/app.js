@@ -26,6 +26,10 @@ let clients = {};
     await connectDB();
     console.log('MongoDB connected...');
 
+
+    // Habilitar el middleware CORS
+    app.use(cors());
+
     app.use(express.json());
     app.use("/client", express.static(path.join(__dirname, "../client")));
     app.use("/company", express.static(path.join(__dirname, "../company")));
