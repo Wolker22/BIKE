@@ -2,9 +2,10 @@ const express = require("express");
 const https = require("https");
 const fs = require("fs");
 const WebSocket = require("ws");
+const path = require("path");
 const locationsRouter = require("./routes/locations");
 const geofenceRouter = require("./routes/geofence");
-const path = require("path");
+const connectDB = require('./config/db');
 
 const privateKey = fs.readFileSync("/etc/letsencrypt/live/bikely.mooo.com/privkey.pem", "utf8");
 const certificate = fs.readFileSync("/etc/letsencrypt/live/bikely.mooo.com/fullchain.pem", "utf8");
@@ -17,12 +18,15 @@ const wss = new WebSocket.Server({ server });
 
 let clients = {};
 
+connectDB();
+
 app.use(express.json());
 app.use("/client", express.static(path.join(__dirname, "../client")));
 app.use("/company", express.static(path.join(__dirname, "../company")));
 app.use("/locations", locationsRouter);
 app.use("/geofence", geofenceRouter);
 
+// Manejar conexiones WebSocket
 wss.on("connection", (ws) => {
   ws.on("message", (message) => {
     const parsedMessage = JSON.parse(message);
@@ -42,6 +46,7 @@ wss.on("connection", (ws) => {
   });
 });
 
+// Ruta para manejar multas de geocercas
 app.post("/geofence/penalties", async (req, res) => {
   const { coords } = req.body;
   const penalties = calculatePenaltiesForUsers(coords);

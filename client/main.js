@@ -204,7 +204,8 @@ async function sendLocationToBackend(location) {
       body: JSON.stringify({ location, username }),
     });
     if (!response.ok) {
-      throw new Error("Error al enviar la ubicación.");
+      const errorData = await response.json();
+      throw new Error(`Error al enviar la ubicación: ${errorData.message}`);
     }
   } catch (error) {
     console.error("Error al enviar la ubicación:", error);
