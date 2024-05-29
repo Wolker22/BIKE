@@ -1,20 +1,16 @@
 const express = require("express");
 const https = require("https");
 const fs = require("fs");
-const cors = require('cors');
+const cors = require("cors");
 const WebSocket = require("ws");
 const path = require("path");
 const locationsRouter = require("./routes/locations");
 const geofenceRouter = require("./routes/geofence");
 const connectDB = require('./config/db');
 
-const privateKeyPath = "/etc/letsencrypt/live/bikely.mooo.com/privkey.pem";
-const certificatePath = "/etc/letsencrypt/live/bikely.mooo.com/fullchain.pem";
-
-const credentials = {
-  key: fs.readFileSync(privateKeyPath, "utf8"),
-  cert: fs.readFileSync(certificatePath, "utf8")
-};
+const privateKey = fs.readFileSync('/etc/letsencrypt/live/bikely.mooo.com/privkey.pem', 'utf8');
+const certificate = fs.readFileSync('/etc/letsencrypt/live/bikely.mooo.com/fullchain.pem', 'utf8');
+const credentials = { key: privateKey, cert: certificate };
 
 const app = express();
 const server = https.createServer(credentials, app);
@@ -27,12 +23,11 @@ let clients = {};
     await connectDB();
     console.log('MongoDB connected...');
 
-
-    // Habilitar el middleware CORS con la configuración
     app.use(cors({
-      origin: 'https://bikely.mooo.com:3000' // Reemplaza esto con tu dominio
+      origin: 'https://bikely.mooo.com',
+      methods: ['GET', 'POST'],
+      credentials: true,
     }));
-
 
     app.use(express.json());
     app.use("/client", express.static(path.join(__dirname, "../client")));
@@ -86,7 +81,6 @@ let clients = {};
       ];
     }
 
-    // Nueva ruta para manejar la ubicación
     app.post("/company/location", (req, res) => {
       const { location, username } = req.body;
       console.log("Coordenadas recibidas:", location);
