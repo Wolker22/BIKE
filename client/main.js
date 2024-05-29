@@ -169,7 +169,7 @@ async function startUpdatingLocation() {
 
 async function sendLocationToBackend(location) {
   try {
-    const response = await fetch("http://localhost:3000/company/location", { // Cambiar a http:// si no usas HTTPS
+    const response = await fetch("https://localhost:3000/company/location", { // Cambiar a http:// si no usas HTTPS
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ location, username }),
@@ -184,7 +184,7 @@ async function sendLocationToBackend(location) {
 
 async function getOdooUsername() {
   try {
-    const response = await fetch("http://localhost:3000/odoo/username"); // Cambiar a http:// si no usas HTTPS
+    const response = await fetch("https://localhost:3000/odoo/username"); // Cambiar a http:// si no usas HTTPS
     if (!response.ok) {
       throw new Error("Error al obtener el nombre de usuario.");
     }
