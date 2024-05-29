@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const user = await getOdooUsername();
     if (user) username = user;
     document.getElementById("username-display").textContent = username;
-    initWebSocket(); // Inicializa el WebSocket
+    initWebSocket();
   } catch (error) {
     console.error("Error obteniendo el nombre de usuario:", error);
   } finally {
@@ -57,11 +57,11 @@ function initMap() {
 }
 
 function initWebSocket() {
-  socket = new WebSocket("ws://localhost:3000"); // Conéctese al servidor WebSocket
+  socket = new WebSocket("wss://localhost:3000"); // Usar wss:// para WebSocket seguro
 
   socket.addEventListener("open", () => {
     console.log("Conectado al servidor WebSocket");
-    socket.send(JSON.stringify({ type: "register", username })); // Registrarse con el ID de usuario
+    socket.send(JSON.stringify({ type: "register", username }));
   });
 
   socket.addEventListener("message", (event) => {
@@ -144,7 +144,7 @@ async function endSession(isLogout = false) {
   clearInterval(intervalId);
 
   try {
-    const response = await fetch("http://localhost:3000/locations/end", {
+    const response = await fetch("https://localhost:3000/locations/end", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username }),
@@ -192,7 +192,7 @@ async function startUpdatingLocation() {
 
 async function sendLocationToBackend(location) {
   try {
-    const response = await fetch("http://localhost:3000/locations", {
+    const response = await fetch("https://localhost:3000/company/location", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ location, username }),
@@ -205,20 +205,11 @@ async function sendLocationToBackend(location) {
   }
 }
 
-function showError(message) {
-  const notificationContainer = document.getElementById("notification-container");
-  notificationContainer.textContent = message;
-  notificationContainer.style.display = "block";
-  setTimeout(() => {
-    notificationContainer.style.display = "none";
-  }, 3000);
-}
-
 async function getOdooUsername() {
   try {
-    const response = await fetch("http://localhost:3000/odoo/username", { credentials: "include" });
+    const response = await fetch("https://localhost:3000/odoo/username");
     if (!response.ok) {
-      throw new Error("No se pudo obtener el nombre de usuario.");
+      throw new Error("Error al obtener el nombre de usuario.");
     }
     const data = await response.json();
     return data.username;
@@ -226,4 +217,10 @@ async function getOdooUsername() {
     console.error("Error obteniendo el nombre de usuario:", error);
     return null;
   }
+}
+
+function showError(message) {
+  const errorElement = document.getElementById("error-message");
+  errorElement.textContent = message;
+  errorElement.style.display = "block";
 }

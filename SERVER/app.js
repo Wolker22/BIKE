@@ -79,16 +79,13 @@ let clients = {};
       ];
     }
 
-    // En app.js
+    // Nueva ruta para manejar la ubicación
     app.post("/company/location", (req, res) => {
-      const { location, username } = req.body; // Obtiene las coordenadas y el nombre de usuario del cuerpo de la solicitud
+      const { location, username } = req.body;
       console.log("Coordenadas recibidas:", location);
       console.log("Usuario:", username);
-      // Aquí puedes escribir la lógica para manejar las coordenadas recibidas del cliente y el nombre de usuario
-      // Por ejemplo, puedes pasarlo a la función relacionada con el componente de empresa
-      res.sendStatus(200); // Envía una respuesta de éxito al cliente
+      res.sendStatus(200);
     });
-
 
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, () => {
