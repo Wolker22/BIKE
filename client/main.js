@@ -144,7 +144,7 @@ async function endSession(isLogout = false) {
   clearInterval(intervalId);
 
   try {
-    const response = await fetch("https://localhost:3000/locations/end", {
+    const response = await fetch("http://localhost:3000/locations/end", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username }),
@@ -165,7 +165,7 @@ async function endSession(isLogout = false) {
   }
 }
 
-function startUpdatingLocation() {
+async function startUpdatingLocation() {
   if (navigator.geolocation) {
     intervalId = setInterval(async () => {
       try {
@@ -192,7 +192,7 @@ function startUpdatingLocation() {
 
 async function sendLocationToBackend(location) {
   try {
-    const response = await fetch("https://localhost:3000/locations", {
+    const response = await fetch("http://localhost:3000/locations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ location, username }),
@@ -216,7 +216,7 @@ function showError(message) {
 
 async function getOdooUsername() {
   try {
-    const response = await fetch("https://localhost:3000/odoo/username", { credentials: "include" });
+    const response = await fetch("http://localhost:3000/odoo/username", { credentials: "include" });
     if (!response.ok) {
       throw new Error("No se pudo obtener el nombre de usuario.");
     }
