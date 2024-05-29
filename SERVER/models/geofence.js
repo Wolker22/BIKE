@@ -1,14 +1,10 @@
 const mongoose = require("mongoose");
 
 const geofenceSchema = new mongoose.Schema({
-  name: { type: String, required: true },
-  coordinates: {
-    type: { type: String, default: "Point" },
-    coordinates: { type: [Number], required: true },
-  },
-  radius: { type: Number, required: true },
+  geofenceId: { type: String, required: true },
+  coordinates: { type: Array, required: true }
 });
 
-geofenceSchema.index({ coordinates: "2dsphere" });
+const Geofence = mongoose.model("Geofence", geofenceSchema);
 
-module.exports = mongoose.model("Geofence", geofenceSchema);
+module.exports = Geofence;
