@@ -7,7 +7,6 @@ const locationsRouter = require("./routes/locations");
 const geofenceRouter = require("./routes/geofence");
 const connectDB = require('./config/db');
 
-// Cargar certificados SSL
 const privateKeyPath = "/etc/letsencrypt/live/bikely.mooo.com/privkey.pem";
 const certificatePath = "/etc/letsencrypt/live/bikely.mooo.com/fullchain.pem";
 

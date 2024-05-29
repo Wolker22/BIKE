@@ -18,7 +18,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   } finally {
     initMap();
   }
-});
+}, { passive: true });
 
 function initMap() {
   const coords = { lat: 37.91495442422956, lng: -4.716284234252457 };
@@ -57,7 +57,7 @@ function initMap() {
 }
 
 function initWebSocket() {
-  socket = new WebSocket("wss://localhost:3000"); // Usar wss:// para WebSocket seguro
+  socket = new WebSocket("wss://localhost:3000");
 
   socket.addEventListener("open", () => {
     console.log("Conectado al servidor WebSocket");
@@ -121,72 +121,35 @@ async function getUserLocation() {
             lng: position.coords.longitude,
           });
         },
-        (error) => reject(error),
-        { enableHighAccuracy: true }
+        (error) => {
+          reject(new Error("No se pudo obtener la ubicación."));
+        }
       );
     });
   } else {
-    throw new Error("Su navegador no soporta la geolocalización.");
-  }
-}
-
-document.getElementById("start-biking-button").addEventListener("click", () => {
-  document.getElementById("initial-screen").style.display = "none";
-  document.getElementById("map-container").style.display = "block";
-  startUpdatingLocation();
-});
-
-document.getElementById("logout-button").addEventListener("click", () => {
-  endSession(true);
-});
-
-async function endSession(isLogout = false) {
-  clearInterval(intervalId);
-
-  try {
-    const response = await fetch("https://localhost:3000/locations/end", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username }),
-    });
-    const data = await response.json();
-    alert(`Uso finalizado. Tiempo total: ${data.timeUsed} minutos. Número de multas: ${data.penaltyAmount}`);
-    if (isLogout) {
-      window.location.href = "thanks/thanks.html";
-    } else {
-      location.reload();
-    }
-  } catch (error) {
-    showError("Error al finalizar el uso.");
-    console.error("Error al finalizar el uso:", error);
-    if (isLogout) {
-      window.location.href = "thanks/thanks.html";
-    }
+    throw new Error("Geolocalización no es soportada por este navegador.");
   }
 }
 
 async function startUpdatingLocation() {
-  if (navigator.geolocation) {
+  try {
+    const userLocation = await getUserLocation();
+    map.setCenter(userLocation);
+    map.setZoom(19);
+
+    if (userMarker) userMarker.setMap(null);
+    userMarker = new google.maps.Marker({
+      position: userLocation,
+      map: map,
+    });
+
     intervalId = setInterval(async () => {
-      try {
-        const position = await getUserLocation();
-        const location = { lat: position.lat, lng: position.lng };
-        sendLocationToBackend(location);
-        if (!userMarker) {
-          userMarker = new google.maps.Marker({
-            position: location,
-            map: map,
-          });
-        } else {
-          userMarker.setPosition(location);
-        }
-        map.setCenter(location);
-      } catch (error) {
-        console.error("Error obteniendo la ubicación:", error);
-      }
+      const userLocation = await getUserLocation();
+      userMarker.setPosition(userLocation);
+      await sendLocationToBackend(userLocation);
     }, 5000);
-  } else {
-    showError("Su navegador no soporta la geolocalización.");
+  } catch (error) {
+    showError("No se pudo obtener su ubicación.");
   }
 }
 
