@@ -2,16 +2,17 @@ const express = require("express");
 const router = express.Router();
 const Location = require("../models/location");
 
-router.post("/", async (req, res) => {
-  try {
-    const { location, username } = req.body;
-    const newLocation = new Location({ username, location });
-    await newLocation.save();
-    res.status(201).send(newLocation);
-  } catch (error) {
-    res.status(400).send({ error: "Error saving location" });
+router.post('/', (req, res) => {
+  const { lat, lng } = req.body;
+  if (!lat || !lng) {
+    return res.status(400).json({ error: 'Latitud y longitud son requeridas' });
   }
+  // Lógica para manejar las coordenadas recibidas
+  res.status(200).json({ message: 'Ubicación recibida' });
 });
+
+module.exports = router;
+
 
 router.post("/end", async (req, res) => {
   try {

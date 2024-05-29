@@ -57,7 +57,7 @@ function initMap() {
 }
 
 function initWebSocket() {
-  socket = new WebSocket("wss://bikely.mooo.com:3000");
+  socket = new WebSocket("wss://bikely.mooo.com");
 
   socket.addEventListener("open", () => {
     console.log("Conectado al servidor WebSocket");
@@ -85,7 +85,7 @@ function showPenaltyNotification(penalty) {
 }
 
 function updateGeofence(coordinates) {
-  // Logic to update geofence on the map
+  // Lógica para actualizar la geocerca en el mapa
 }
 
 async function traceRouteToPlace(destination, name, photoUrl) {
@@ -177,7 +177,7 @@ function startUpdatingLocation() {
       try {
         const position = await getUserLocation();
         const location = { lat: position.lat, lng: position.lng };
-        sendLocationToBackend(location);
+        await sendLocationToBackend(location);
         if (!userMarker) {
           userMarker = new google.maps.Marker({
             position: location,
