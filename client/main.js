@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const user = await getOdooUsername();
     if (user) username = user;
     document.getElementById("username-display").textContent = username;
-    initWebSocket();
+    initWebSocket(); // Inicializa el WebSocket
   } catch (error) {
     console.error("Error obteniendo el nombre de usuario:", error);
   } finally {
@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 function initMap() {
-  const coords = { lat: 37.914954, lng: -4.716284 };
+  const coords = { lat: 37.91495442422956, lng: -4.716284234252457 };
 
   map = new google.maps.Map(document.getElementById("map"), {
     zoom: 12,
@@ -57,19 +57,17 @@ function initMap() {
 }
 
 function initWebSocket() {
-  socket = new WebSocket("wss://bikely.mooo.com");
+  socket = new WebSocket("ws://localhost:3000"); // Conéctese al servidor WebSocket
 
   socket.addEventListener("open", () => {
     console.log("Conectado al servidor WebSocket");
-    socket.send(JSON.stringify({ type: "register", username }));
+    socket.send(JSON.stringify({ type: "register", username })); // Registrarse con el ID de usuario
   });
 
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
     if (message.type === "penalty") {
       showPenaltyNotification(message.data);
-    } else if (message.type === "geofence") {
-      updateGeofence(message.coordinates);
     }
   });
 
@@ -82,10 +80,6 @@ function showPenaltyNotification(penalty) {
   penaltyCount++;
   document.getElementById("penalty-count-value").textContent = penaltyCount;
   showError(`Has recibido una multa: ${penalty.reason}`);
-}
-
-function updateGeofence(coordinates) {
-  // Lógica para actualizar la geocerca en el mapa
 }
 
 async function traceRouteToPlace(destination, name, photoUrl) {
@@ -150,7 +144,7 @@ async function endSession(isLogout = false) {
   clearInterval(intervalId);
 
   try {
-    const response = await fetch("https://bikely.mooo.com:3000/locations/end", {
+    const response = await fetch("https://localhost:3000/locations/end", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username }),
@@ -177,7 +171,7 @@ function startUpdatingLocation() {
       try {
         const position = await getUserLocation();
         const location = { lat: position.lat, lng: position.lng };
-        await sendLocationToBackend(location);
+        sendLocationToBackend(location);
         if (!userMarker) {
           userMarker = new google.maps.Marker({
             position: location,
@@ -198,14 +192,13 @@ function startUpdatingLocation() {
 
 async function sendLocationToBackend(location) {
   try {
-    const response = await fetch("https://localhost:3000/../SERVER/models/locations", {
+    const response = await fetch("https://localhost:3000/locations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ location, username }),
     });
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Error al enviar la ubicación: ${errorData.message}`);
+      throw new Error("Error al enviar la ubicación.");
     }
   } catch (error) {
     console.error("Error al enviar la ubicación:", error);
@@ -223,7 +216,7 @@ function showError(message) {
 
 async function getOdooUsername() {
   try {
-    const response = await fetch("https://bikely.mooo.com:3000/odoo/username", { credentials: "include" });
+    const response = await fetch("https://localhost:3000/odoo/username", { credentials: "include" });
     if (!response.ok) {
       throw new Error("No se pudo obtener el nombre de usuario.");
     }
