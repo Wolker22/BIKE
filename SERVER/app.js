@@ -27,8 +27,11 @@ let clients = {};
     console.log('MongoDB connected...');
 
 
-    // Habilitar el middleware CORS
-    app.use(cors());
+    // Habilitar el middleware CORS con la configuración
+    app.use(cors({
+      origin: 'https://bikely.mooo.com:3000' // Reemplaza esto con tu dominio
+    }));
+
 
     app.use(express.json());
     app.use("/client", express.static(path.join(__dirname, "../client")));
