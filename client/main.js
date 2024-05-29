@@ -21,7 +21,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 function initMap() {
-  const coords = { lat: 37.91495442422956, lng: -4.716284234252457 };
+  const coords = { lat: 37.914954, lng: -4.716284 };
 
   map = new google.maps.Map(document.getElementById("map"), {
     zoom: 12,
@@ -57,7 +57,7 @@ function initMap() {
 }
 
 function initWebSocket() {
-  socket = new WebSocket("ws://localhost:3000");
+  socket = new WebSocket("wss://bikely.mooo.com:3000");
 
   socket.addEventListener("open", () => {
     console.log("Conectado al servidor WebSocket");
@@ -68,6 +68,8 @@ function initWebSocket() {
     const message = JSON.parse(event.data);
     if (message.type === "penalty") {
       showPenaltyNotification(message.data);
+    } else if (message.type === "geofence") {
+      updateGeofence(message.coordinates);
     }
   });
 
@@ -80,6 +82,10 @@ function showPenaltyNotification(penalty) {
   penaltyCount++;
   document.getElementById("penalty-count-value").textContent = penaltyCount;
   showError(`Has recibido una multa: ${penalty.reason}`);
+}
+
+function updateGeofence(coordinates) {
+  // Logic to update geofence on the map
 }
 
 async function traceRouteToPlace(destination, name, photoUrl) {
@@ -144,7 +150,7 @@ async function endSession(isLogout = false) {
   clearInterval(intervalId);
 
   try {
-    const response = await fetch("https://localhost:3000/locations/end", {
+    const response = await fetch("https://bikely.mooo.com:3000/locations/end", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username }),
@@ -192,7 +198,7 @@ function startUpdatingLocation() {
 
 async function sendLocationToBackend(location) {
   try {
-    const response = await fetch("https://localhost:3000/locations", {
+    const response = await fetch("https://bikely.mooo.com:3000/locations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ location, username }),
@@ -216,7 +222,7 @@ function showError(message) {
 
 async function getOdooUsername() {
   try {
-    const response = await fetch("https://localhost:3000/odoo/username", { credentials: "include" });
+    const response = await fetch("https://bikely.mooo.com:3000/odoo/username", { credentials: "include" });
     if (!response.ok) {
       throw new Error("No se pudo obtener el nombre de usuario.");
     }
