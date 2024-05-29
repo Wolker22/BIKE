@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const user = await getOdooUsername();
     if (user) username = user;
     document.getElementById("username-display").textContent = username;
-    initWebSocket(); // Inicializa el WebSocket
+    initWebSocket();
   } catch (error) {
     console.error("Error obteniendo el nombre de usuario:", error);
   } finally {
@@ -57,11 +57,11 @@ function initMap() {
 }
 
 function initWebSocket() {
-  socket = new WebSocket("ws://localhost:3000"); // Conéctese al servidor WebSocket
+  socket = new WebSocket("ws://localhost:3000");
 
   socket.addEventListener("open", () => {
     console.log("Conectado al servidor WebSocket");
-    socket.send(JSON.stringify({ type: "register", username })); // Registrarse con el ID de usuario
+    socket.send(JSON.stringify({ type: "register", username }));
   });
 
   socket.addEventListener("message", (event) => {

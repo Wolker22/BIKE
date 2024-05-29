@@ -68,7 +68,11 @@ function sendGeofenceToClients(geofenceId, coordinates) {
     geofenceId: geofenceId,
     coordinates: coordinates
   };
-  ws.send(JSON.stringify(message));
+  if (ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(message));
+  } else {
+    console.error("WebSocket no está abierto.");
+  }
 }
 
 function defineGeofence() {
@@ -133,12 +137,45 @@ function updateUserList(users) {
 // Función para inicializar el WebSocket
 function initWebSocket() {
   ws = new WebSocket("ws://localhost:3000");
+  
+  ws.onopen = () => {
+    console.log("Conectado al servidor WebSocket");
+  };
+  
   ws.onmessage = event => {
     const data = JSON.parse(event.data);
-    if (data.users) {
+    if (data.type === 'users') {
       updateUserList(data.users);
+    } else if (data.type === 'geofence') {
+      updateGeofenceOnMap(data.coordinates);
     }
   };
+
+  ws.onclose = () => {
+    console.log("Desconectado del servidor WebSocket. Reintentando en 5 segundos...");
+    setTimeout(initWebSocket, 5000);
+  };
+
+  ws.onerror = error => {
+    console.error("WebSocket error:", error);
+  };
+}
+
+// Función para actualizar la geofence en el mapa cuando se recibe una actualización
+function updateGeofenceOnMap(coordinates) {
+  if (geofencePolygon) {
+    geofencePolygon.setMap(null);
+  }
+  geofencePolygon = new google.maps.Polygon({
+    paths: coordinates,
+    strokeColor: "#FF0000",
+    strokeOpacity: 0.8,
+    strokeWeight: 2,
+    fillColor: "#FF0000",
+    fillOpacity: 0.35
+  });
+  geofencePolygon.setMap(map);
+  geofenceCoordinates = coordinates;
 }
 
 // Función para guardar las coordenadas del geofence en el almacenamiento local del navegador
