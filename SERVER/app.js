@@ -7,6 +7,7 @@ const locationsRouter = require("./routes/locations");
 const geofenceRouter = require("./routes/geofence");
 const connectDB = require('./config/db');
 
+// Cargar certificados SSL
 const privateKey = fs.readFileSync("/etc/letsencrypt/live/bikely.mooo.com/privkey.pem", "utf8");
 const certificate = fs.readFileSync("/etc/letsencrypt/live/bikely.mooo.com/fullchain.pem", "utf8");
 
@@ -18,6 +19,7 @@ const wss = new WebSocket.Server({ server });
 
 let clients = {};
 
+// Conectar a la base de datos
 connectDB();
 
 app.use(express.json());
