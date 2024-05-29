@@ -156,6 +156,8 @@ async function startUpdatingLocation() {
         position: userLocation,
         map: map,
       });
+    } else {
+      userMarker.setPosition(userLocation); // Actualizar la posición del marcador existente
     }
 
     intervalId = setInterval(async () => {
@@ -167,6 +169,7 @@ async function startUpdatingLocation() {
     showError("No se pudo obtener su ubicación.");
   }
 }
+
 
 
 async function sendLocationToBackend(location) {
