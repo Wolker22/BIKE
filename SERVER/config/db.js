@@ -1,11 +1,12 @@
 const mongoose = require('mongoose');
-const dotenv = require('dotenv');
 
-dotenv.config();
+// Configuración del URI de conexión a MongoDB
+const mongoURI = 'mongodb+srv://davidpenafernandez19:hMqFAlutsCRFQWIF@cluster0.l5unjb1.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0';
 
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI, {
+    // Conectar a MongoDB utilizando el URI configurado
+    await mongoose.connect(mongoURI, {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
