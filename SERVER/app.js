@@ -26,7 +26,6 @@ app.use("/company", express.static(path.join(__dirname, "../company")));
 app.use("/locations", locationsRouter);
 app.use("/geofence", geofenceRouter);
 
-// Manejar conexiones WebSocket
 wss.on("connection", (ws) => {
   ws.on("message", (message) => {
     const parsedMessage = JSON.parse(message);
@@ -46,7 +45,6 @@ wss.on("connection", (ws) => {
   });
 });
 
-// Ruta para manejar multas de geocercas
 app.post("/geofence/penalties", async (req, res) => {
   const { coords } = req.body;
   const penalties = calculatePenaltiesForUsers(coords);
