@@ -19,9 +19,6 @@ const wss = new WebSocket.Server({ server });
 
 let clients = {};
 
-// Middleware para habilitar CORS
-app.use(cors()); // Utiliza el middleware CORS para todas las rutas
-
 // Conectar a la base de datos
 (async () => {
   try {
