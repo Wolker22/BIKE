@@ -198,7 +198,7 @@ function startUpdatingLocation() {
 
 async function sendLocationToBackend(location) {
   try {
-    const response = await fetch("https://bikely.mooo.com:3000/locations", {
+    const response = await fetch("https://localhost:3000/../SERVER/models/locations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ location, username }),
