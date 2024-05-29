@@ -68,7 +68,7 @@ function initMap() {
 
 function initWebSocket() {
   try {
-    socket = new WebSocket("wss://localhost:3000"); // Usar wss:// para conexiones seguras con HTTPS
+    socket = new WebSocket("wss://localhost:443"); // Usar wss:// para conexiones seguras con HTTPS
 
     socket.addEventListener("open", () => {
       console.log("Conectado al servidor WebSocket");
@@ -174,7 +174,7 @@ async function startUpdatingLocation() {
 
 async function sendLocationToBackend(location) {
   try {
-    const response = await fetch("https://localhost:3000/company/location", { // Cambiar a http:// si no usas HTTPS
+    const response = await fetch("https://localhost:443/company/location", { // Cambiar a http:// si no usas HTTPS
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ location, username }),
@@ -189,7 +189,7 @@ async function sendLocationToBackend(location) {
 
 async function getOdooUsername() {
   try {
-    const response = await fetch("https://localhost:3000/odoo/username"); // Cambiar a http:// si no usas HTTPS
+    const response = await fetch("https://localhost:443/odoo/username"); // Cambiar a http:// si no usas HTTPS
     if (!response.ok) {
       throw new Error("Error al obtener el nombre de usuario.");
     }
@@ -207,5 +207,5 @@ function showError(message) {
   errorElement.style.display = "block";
   setTimeout(() => {
     errorElement.style.display = "none";
-  }, 3000);
+  }, 443);
 }
