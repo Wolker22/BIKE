@@ -17,7 +17,7 @@ const credentials = {
 
 const app = express();
 const server = https.createServer(credentials, app);
-const wss = new WebSocket.Server({ noServer: true }); // Crear el servidor WebSocket sin un servidor HTTP
+const wss = new WebSocket.Server({ server });
 
 let clients = {};
 
@@ -47,12 +47,6 @@ let clients = {};
             break;
           }
         }
-      });
-    });
-
-    server.on('upgrade', (request, socket, head) => {
-      wss.handleUpgrade(request, socket, head, (ws) => {
-        wss.emit('connection', ws, request);
       });
     });
 
@@ -92,16 +86,9 @@ let clients = {};
       res.sendStatus(200);
     });
 
-    // Escuchar en el puerto 3000 para Express
-    const PORT_EXPRESS = process.env.PORT_EXPRESS || 3000;
-    app.listen(PORT_EXPRESS, () => {
-      console.log(`Express server running on port ${PORT_EXPRESS}`);
-    });
-
-    // Escuchar en el puerto 443 para HTTPS
-    const PORT_HTTPS = 443;
-    server.listen(PORT_HTTPS, () => {
-      console.log(`HTTPS server running on port ${PORT_HTTPS}`);
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
     });
 
   } catch (err) {
