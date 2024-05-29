@@ -57,7 +57,7 @@ function initMap() {
 }
 
 function initWebSocket() {
-  socket = new WebSocket("ws://localhost:3001"); // Conéctese al servidor WebSocket
+  socket = new WebSocket("ws://localhost:3000"); // Conéctese al servidor WebSocket
 
   socket.addEventListener("open", () => {
     console.log("Conectado al servidor WebSocket");
@@ -144,7 +144,7 @@ async function endSession(isLogout = false) {
   clearInterval(intervalId);
 
   try {
-    const response = await fetch("https://localhost:3001/locations/end", {
+    const response = await fetch("https://localhost:3000/locations/end", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username }),
@@ -192,7 +192,7 @@ function startUpdatingLocation() {
 
 async function sendLocationToBackend(location) {
   try {
-    const response = await fetch("https://localhost:3001/locations", {
+    const response = await fetch("https://localhost:3000/locations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ location, username }),
@@ -211,12 +211,12 @@ function showError(message) {
   notificationContainer.style.display = "block";
   setTimeout(() => {
     notificationContainer.style.display = "none";
-  }, 3001);
+  }, 3000);
 }
 
 async function getOdooUsername() {
   try {
-    const response = await fetch("https://localhost:3001/odoo/username", { credentials: "include" });
+    const response = await fetch("https://localhost:3000/odoo/username", { credentials: "include" });
     if (!response.ok) {
       throw new Error("No se pudo obtener el nombre de usuario.");
     }
