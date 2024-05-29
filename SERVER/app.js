@@ -8,10 +8,13 @@ const geofenceRouter = require("./routes/geofence");
 const connectDB = require('./config/db');
 
 // Cargar certificados SSL
-const privateKey = fs.readFileSync("/etc/letsencrypt/live/bikely.mooo.com/privkey.pem", "utf8");
-const certificate = fs.readFileSync("/etc/letsencrypt/live/bikely.mooo.com/fullchain.pem", "utf8");
+const privateKeyPath = "/etc/letsencrypt/live/bikely.mooo.com/privkey.pem";
+const certificatePath = "/etc/letsencrypt/live/bikely.mooo.com/fullchain.pem";
 
-const credentials = { key: privateKey, cert: certificate };
+const credentials = {
+  key: fs.readFileSync(privateKeyPath, "utf8"),
+  cert: fs.readFileSync(certificatePath, "utf8")
+};
 
 const app = express();
 const server = https.createServer(credentials, app);
@@ -19,7 +22,6 @@ const wss = new WebSocket.Server({ server });
 
 let clients = {};
 
-// Conectar a la base de datos
 (async () => {
   try {
     await connectDB();
@@ -35,8 +37,7 @@ let clients = {};
       ws.on("message", (message) => {
         const parsedMessage = JSON.parse(message);
         if (parsedMessage.type === "register") {
-          const username = parsedMessage.username;
-          clients[username] = ws;
+          clients[parsedMessage.username] = ws;
         }
       });
 
@@ -77,6 +78,17 @@ let clients = {};
         { username: "usuario1", location: { lat: 37.914954, lng: -4.716284 } },
       ];
     }
+
+    // En app.js
+    app.post("/company/location", (req, res) => {
+      const { location, username } = req.body; // Obtiene las coordenadas y el nombre de usuario del cuerpo de la solicitud
+      console.log("Coordenadas recibidas:", location);
+      console.log("Usuario:", username);
+      // Aquí puedes escribir la lógica para manejar las coordenadas recibidas del cliente y el nombre de usuario
+      // Por ejemplo, puedes pasarlo a la función relacionada con el componente de empresa
+      res.sendStatus(200); // Envía una respuesta de éxito al cliente
+    });
+
 
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, () => {
