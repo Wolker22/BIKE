@@ -67,23 +67,27 @@ function initMap() {
 }
 
 function initWebSocket() {
-  socket = new WebSocket("wss://localhost:3000");
+  try {
+    socket = new WebSocket("ws://localhost:3000"); // Cambiar a ws:// si no usas HTTPS
 
-  socket.addEventListener("open", () => {
-    console.log("Conectado al servidor WebSocket");
-    socket.send(JSON.stringify({ type: "register", username }));
-  });
+    socket.addEventListener("open", () => {
+      console.log("Conectado al servidor WebSocket");
+      socket.send(JSON.stringify({ type: "register", username }));
+    });
 
-  socket.addEventListener("message", (event) => {
-    const message = JSON.parse(event.data);
-    if (message.type === "penalty") {
-      showPenaltyNotification(message.data);
-    }
-  });
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(event.data);
+      if (message.type === "penalty") {
+        showPenaltyNotification(message.data);
+      }
+    });
 
-  socket.addEventListener("close", () => {
-    console.log("Desconectado del servidor WebSocket");
-  });
+    socket.addEventListener("close", () => {
+      console.log("Desconectado del servidor WebSocket");
+    });
+  } catch (error) {
+    console.error("Error conectando al WebSocket:", error);
+  }
 }
 
 function showPenaltyNotification(penalty) {
@@ -165,7 +169,7 @@ async function startUpdatingLocation() {
 
 async function sendLocationToBackend(location) {
   try {
-    const response = await fetch("https://localhost:3000/company/location", {
+    const response = await fetch("http://localhost:3000/company/location", { // Cambiar a http:// si no usas HTTPS
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ location, username }),
@@ -180,7 +184,7 @@ async function sendLocationToBackend(location) {
 
 async function getOdooUsername() {
   try {
-    const response = await fetch("https://localhost:3000/odoo/username");
+    const response = await fetch("http://localhost:3000/odoo/username"); // Cambiar a http:// si no usas HTTPS
     if (!response.ok) {
       throw new Error("Error al obtener el nombre de usuario.");
     }
