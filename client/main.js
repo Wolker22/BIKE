@@ -20,6 +20,16 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 }, { passive: true });
 
+document.getElementById("start-biking-button").addEventListener("click", async () => {
+  document.getElementById("initial-screen").style.display = "none";
+  document.getElementById("map-container").style.display = "block";
+  try {
+    await startUpdatingLocation();
+  } catch (error) {
+    showError("No se pudo obtener su ubicación.");
+  }
+});
+
 function initMap() {
   const coords = { lat: 37.91495442422956, lng: -4.716284234252457 };
 
@@ -186,4 +196,7 @@ function showError(message) {
   const errorElement = document.getElementById("error-message");
   errorElement.textContent = message;
   errorElement.style.display = "block";
+  setTimeout(() => {
+    errorElement.style.display = "none";
+  }, 3000);
 }
