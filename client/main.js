@@ -1,158 +1,229 @@
 let map;
-let drawingManager;
-let geofencePolygon;
 let autocomplete;
-let ws;
+let userMarker;
+let username = "NO USUARIO";
+let intervalId;
+let directionsRenderer;
+let penaltyCount = 0;
+let socket;
+
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    const user = await getOdooUsername();
+    if (user) username = user;
+    document.getElementById("username-display").textContent = username;
+    initWebSocket();
+  } catch (error) {
+    console.error("Error obteniendo el nombre de usuario:", error);
+  } finally {
+    initMap();
+  }
+});
 
 function initMap() {
-  const coords = { lat: 37.914954, lng: -4.716284 };
+  const coords = { lat: 37.91495442422956, lng: -4.716284234252457 };
+
   map = new google.maps.Map(document.getElementById("map"), {
     zoom: 12,
     center: coords,
   });
 
-  drawingManager = new google.maps.drawing.DrawingManager({
-    drawingMode: google.maps.drawing.OverlayType.POLYGON,
-    drawingControl: true,
-    drawingControlOptions: {
-      position: google.maps.ControlPosition.TOP_CENTER,
-      drawingModes: ['polygon']
-    },
-    polygonOptions: {
-      editable: true,
-      draggable: true
-    }
-  });
+  autocomplete = new google.maps.places.Autocomplete(
+    document.getElementById("place-input"),
+    { types: ["geocode"] }
+  );
 
-  drawingManager.setMap(map);
-
-  google.maps.event.addListener(drawingManager, 'overlaycomplete', event => {
-    if (geofencePolygon) {
-      geofencePolygon.setMap(null);
-    }
-    geofencePolygon = event.overlay;
-    const coordinates = geofencePolygon.getPath().getArray().map(latlng => ({
-      lat: latlng.lat(),
-      lng: latlng.lng()
-    }));
-    saveGeofenceToLocal(coordinates); // Save geofence to local storage
-    sendGeofenceToBackend(coordinates); // Send geofence to backend
-    sendGeofenceToClients(coordinates); // Send geofence to clients via WebSocket
-  });
-
-  google.maps.event.addDomListenerOnce(map, 'idle', () => {
-    searchGoogleMap();
-    loadGeofenceFromLocal(); // Load saved geofence from local storage when map loads
-  });
-}
-
-function sendGeofenceToBackend(coordinates) {
-  fetch('https://yourserver.com/geofence', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ coordinates })
-  })
-  .then(response => response.json())
-  .then(data => {
-    console.log('Geofence saved:', data);
-  })
-  .catch(error => console.error('Error saving geofence:', error));
-}
-
-function sendGeofenceToClients(coordinates) {
-  const message = {
-    type: 'geofence',
-    coordinates: coordinates
-  };
-  if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify(message));
-  } else {
-    console.error("WebSocket is not open.");
-  }
-}
-
-function searchGoogleMap() {
-  const input = document.getElementById("place-input");
-  autocomplete = new google.maps.places.Autocomplete(input);
   autocomplete.bindTo("bounds", map);
 
-  autocomplete.addListener("place_changed", () => {
+  autocomplete.addListener("place_changed", async () => {
     const place = autocomplete.getPlace();
     if (!place.geometry || !place.geometry.location) {
-      console.error("No details available for input: '" + place.name + "'");
+      showError("No se encontró información de este lugar.");
       return;
     }
-    map.setCenter(place.geometry.location);
-    map.setZoom(15);
-    showPlaceInformation(place);
-  });
-}
 
-function showPlaceInformation(place) {
-  const reviewsHtml = place.reviews ? place.reviews.map(review => `
-    <div>
-      <p>Author: ${review.author_name}</p>
-      <p>Rating: ${review.rating}</p>
-      <p>${review.text}</p>
-    </div>
-  `).join('') : "<p>No reviews available for this place.</p>";
-  document.getElementById("place-reviews").innerHTML = reviewsHtml;
-}
-
-// WebSocket initialization
-function initWebSocket() {
-  ws = new WebSocket("wss://yourserver.com");
-  
-  ws.onopen = () => {
-    console.log("Connected to WebSocket server");
-  };
-
-  ws.onmessage = event => {
-    const data = JSON.parse(event.data);
-    if (data.type === 'geofence') {
-      updateGeofenceOnMap(data.coordinates);
+    try {
+      const userLocation = await getUserLocation();
+      map.setCenter(userLocation);
+      map.setZoom(19);
+      traceRouteToPlace(place.geometry.location, place.name, place.photos?.[0]?.getUrl());
+    } catch (error) {
+      showError("No se pudo obtener su ubicación.");
     }
-  };
-
-  ws.onclose = () => {
-    console.log("WebSocket connection closed. Reconnecting in 5 seconds...");
-    setTimeout(initWebSocket, 5000);
-  };
-
-  ws.onerror = error => {
-    console.error("WebSocket error:", error);
-  };
-}
-
-function updateGeofenceOnMap(coordinates) {
-  if (geofencePolygon) {
-    geofencePolygon.setMap(null);
-  }
-  geofencePolygon = new google.maps.Polygon({
-    paths: coordinates,
-    strokeColor: "#FF0000",
-    strokeOpacity: 0.8,
-    strokeWeight: 2,
-    fillColor: "#FF0000",
-    fillOpacity: 0.35
   });
-  geofencePolygon.setMap(map);
-  saveGeofenceToLocal(coordinates); // Save geofence to local storage
+
+  directionsRenderer = new google.maps.DirectionsRenderer();
+  directionsRenderer.setMap(map);
 }
 
-function saveGeofenceToLocal(coordinates) {
-  localStorage.setItem("geofenceCoordinates", JSON.stringify(coordinates));
+function initWebSocket() {
+  socket = new WebSocket("ws://localhost:3000");
+
+  socket.addEventListener("open", () => {
+    console.log("Conectado al servidor WebSocket");
+    socket.send(JSON.stringify({ type: "register", username }));
+  });
+
+  socket.addEventListener("message", (event) => {
+    const message = JSON.parse(event.data);
+    if (message.type === "penalty") {
+      showPenaltyNotification(message.data);
+    }
+  });
+
+  socket.addEventListener("close", () => {
+    console.log("Desconectado del servidor WebSocket");
+  });
 }
 
-function loadGeofenceFromLocal() {
-  const savedCoordinates = localStorage.getItem("geofenceCoordinates");
-  if (savedCoordinates) {
-    const coordinates = JSON.parse(savedCoordinates);
-    updateGeofenceOnMap(coordinates);
+function showPenaltyNotification(penalty) {
+  penaltyCount++;
+  document.getElementById("penalty-count-value").textContent = penaltyCount;
+  showError(`Has recibido una multa: ${penalty.reason}`);
+}
+
+async function traceRouteToPlace(destination, name, photoUrl) {
+  try {
+    const userLocation = await getUserLocation();
+    const directionsService = new google.maps.DirectionsService();
+
+    const request = {
+      origin: userLocation,
+      destination: destination,
+      travelMode: google.maps.TravelMode.WALKING,
+    };
+
+    directionsService.route(request, (result, status) => {
+      if (status === google.maps.DirectionsStatus.OK) {
+        directionsRenderer.setDirections(result);
+        const placeData = {
+          name: name,
+          reviews: [],
+          photos: [{ getUrl: () => photoUrl }]
+        };
+        showPlaceInformation(placeData);
+      } else {
+        showError("Error al calcular la ruta.");
+      }
+    });
+  } catch (error) {
+    showError("No se pudo obtener su ubicación.");
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  initMap();
-  initWebSocket();
+async function getUserLocation() {
+  if (navigator.geolocation) {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          resolve({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+        },
+        (error) => reject(error),
+        { enableHighAccuracy: true }
+      );
+    });
+  } else {
+    throw new Error("Su navegador no soporta la geolocalización.");
+  }
+}
+
+document.getElementById("start-biking-button").addEventListener("click", () => {
+  document.getElementById("initial-screen").style.display = "none";
+  document.getElementById("map-container").style.display = "block";
+  startUpdatingLocation();
 });
+
+document.getElementById("logout-button").addEventListener("click", () => {
+  endSession(true);
+});
+
+async function endSession(isLogout = false) {
+  clearInterval(intervalId);
+
+  try {
+    const response = await fetch("https://localhost:3000/locations/end", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username }),
+    });
+    const data = await response.json();
+    alert(`Uso finalizado. Tiempo total: ${data.timeUsed} minutos. Número de multas: ${data.penaltyAmount}`);
+    if (isLogout) {
+      window.location.href = "thanks/thanks.html";
+    } else {
+      location.reload();
+    }
+  } catch (error) {
+    showError("Error al finalizar el uso.");
+    console.error("Error al finalizar el uso:", error);
+    if (isLogout) {
+      window.location.href = "thanks/thanks.html";
+    }
+  }
+}
+
+function startUpdatingLocation() {
+  if (navigator.geolocation) {
+    intervalId = setInterval(async () => {
+      try {
+        const position = await getUserLocation();
+        const location = { lat: position.lat, lng: position.lng };
+        sendLocationToBackend(location);
+        if (!userMarker) {
+          userMarker = new google.maps.Marker({
+            position: location,
+            map: map,
+          });
+        } else {
+          userMarker.setPosition(location);
+        }
+        map.setCenter(location);
+      } catch (error) {
+        console.error("Error obteniendo la ubicación:", error);
+      }
+    }, 5000);
+  } else {
+    showError("Su navegador no soporta la geolocalización.");
+  }
+}
+
+async function sendLocationToBackend(location) {
+  try {
+    const response = await fetch("https://localhost:3000/locations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ location, username }),
+    });
+    if (!response.ok) {
+      throw new Error("Error al enviar la ubicación.");
+    }
+  } catch (error) {
+    console.error("Error al enviar la ubicación:", error);
+  }
+}
+
+function showError(message) {
+  const notificationContainer = document.getElementById("notification-container");
+  notificationContainer.textContent = message;
+  notificationContainer.style.display = "block";
+  setTimeout(() => {
+    notificationContainer.style.display = "none";
+  }, 3000);
+}
+
+async function getOdooUsername() {
+  try {
+    const response = await fetch("https://localhost:3000/odoo/username", { credentials: "include" });
+    if (!response.ok) {
+      throw new Error("No se pudo obtener el nombre de usuario.");
+    }
+    const data = await response.json();
+    return data.username;
+  } catch (error) {
+    console.error("Error obteniendo el nombre de usuario:", error);
+    return null;
+  }
+}

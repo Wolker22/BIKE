@@ -28,13 +28,12 @@ app.use("/company", express.static(path.join(__dirname, "../company")));
 app.use("/locations", locationsRouter);
 app.use("/geofence", geofenceRouter);
 
-// WebSocket connection handling
 wss.on("connection", (ws) => {
   ws.on("message", (message) => {
     const parsedMessage = JSON.parse(message);
     if (parsedMessage.type === "register") {
       const username = parsedMessage.username;
-      clients[username] = ws; // Register the client
+      clients[username] = ws; // Registrar el cliente
     }
   });
 
@@ -50,11 +49,13 @@ wss.on("connection", (ws) => {
 
 app.post("/geofence/penalties", async (req, res) => {
   const { coords } = req.body;
+  // Aquí se puede agregar la lógica para calcular las sanciones basadas en las coordenadas de la geocerca
   const penalties = calculatePenaltiesForUsers(coords);
   res.status(200).json(penalties);
 });
 
 function calculatePenaltiesForUsers(coords) {
+  // Supongamos que se obtiene una lista de usuarios con sus ubicaciones actuales
   const users = getUsersWithinGeofence(coords);
   const penalties = users.map((user) => ({
     username: user.username,
