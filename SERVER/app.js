@@ -1,6 +1,7 @@
 const express = require("express");
 const https = require("https");
 const fs = require("fs");
+const cors = require('cors');
 const WebSocket = require("ws");
 const path = require("path");
 const locationsRouter = require("./routes/locations");
