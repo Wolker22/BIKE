@@ -151,11 +151,12 @@ async function startUpdatingLocation() {
     map.setCenter(userLocation);
     map.setZoom(19);
 
-    if (userMarker) userMarker.setMap(null);
-    userMarker = new google.maps.Marker({
-      position: userLocation,
-      map: map,
-    });
+    if (!userMarker) {
+      userMarker = new google.maps.Marker({
+        position: userLocation,
+        map: map,
+      });
+    }
 
     intervalId = setInterval(async () => {
       const userLocation = await getUserLocation();
@@ -166,6 +167,7 @@ async function startUpdatingLocation() {
     showError("No se pudo obtener su ubicación.");
   }
 }
+
 
 async function sendLocationToBackend(location) {
   try {
