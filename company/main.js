@@ -1,14 +1,12 @@
 let map;
 let drawingManager;
 let geofencePolygon;
-let autocomplete;
 let geofenceCoordinates = null;
 let socket;
 
 document.addEventListener("DOMContentLoaded", () => {
-  initMap();
-  initWebSocket();
   document.getElementById("geofence-button").addEventListener("click", defineGeofence);
+  initWebSocket();
 });
 
 function initMap() {
@@ -45,7 +43,7 @@ function initMap() {
     }));
     geofenceCoordinates = coordinates;
     saveGeofenceToLocal(coordinates);
-    sendGeofenceToBackend("geofence1", coordinates); // Cambiar "geofence1" según sea necesario
+    sendGeofenceToBackend("geofence1", coordinates); // Change "geofence1" as needed
     sendGeofenceToClients("geofence1", coordinates);
   });
 
