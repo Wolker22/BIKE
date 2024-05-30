@@ -8,11 +8,16 @@ let penaltyCount = 0;
 let socket;
 
 document.addEventListener("DOMContentLoaded", async () => {
-  initMap();
-  initWebSocket();
+  try {
+    initMap();
+    initWebSocket();
+  } catch (error) {
+    console.error("Error during initialization:", error);
+    showError("Error during initialization.");
+  }
 }, { passive: true });
 
-document.getElementById("start-biking-button").addEventListener("click", () => {
+document.getElementById("start-biking-button").addEventListener("click", async () => {
   const usernameInput = document.getElementById("username-input").value.trim();
   if (usernameInput) {
     username = usernameInput;
@@ -22,9 +27,11 @@ document.getElementById("start-biking-button").addEventListener("click", () => {
   document.getElementById("map-container").style.display = "block";
   document.getElementById("username-display").textContent = username;
 
-  startUpdatingLocation().catch(error => {
+  try {
+    await startUpdatingLocation();
+  } catch (error) {
     showError("No se pudo obtener su ubicación.");
-  });
+  }
 });
 
 function initMap() {
