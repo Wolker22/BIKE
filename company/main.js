@@ -7,6 +7,7 @@ let users = {};
 let penalties = {};
 let locationUpdateInterval = 30000; // 30 seconds
 let usageTimers = {};
+let penaltyTime = 5000; // 5 seconds for penalty
 
 document.addEventListener("DOMContentLoaded", () => {
   initMap();
@@ -204,8 +205,8 @@ function updateUserLocation(data) {
     if (!penalties[username]) {
       penalties[username] = { count: 0, startTime: Date.now() };
     } else {
-      const timeOutside = (Date.now() - penalties[username].startTime) / 1000;
-      if (timeOutside > 30) {
+      const timeOutside = Date.now() - penalties[username].startTime;
+      if (timeOutside > penaltyTime) {
         socket.send(JSON.stringify({ type: "penalty", data: { username, reason: "Outside geofence" } }));
         penalties[username].count += 1; // Increase the penalty count
         penalties[username].startTime = Date.now(); // Reset the start time
