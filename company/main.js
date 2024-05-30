@@ -7,10 +7,11 @@ let socket;
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("geofence-button").addEventListener("click", defineGeofence);
   initWebSocket();
-  initMap();
+  initMap();  // Asegúrate de que initMap sea llamada aquí también
 });
 
-function initMap() {
+// Define initMap en el ámbito global
+window.initMap = function() {
   const coords = { lat: 37.914954, lng: -4.716284 };
 
   map = new google.maps.Map(document.getElementById("map"), {
