@@ -8,26 +8,23 @@ let penaltyCount = 0;
 let socket;
 
 document.addEventListener("DOMContentLoaded", async () => {
-  try {
-    const user = await getOdooUsername();
-    if (user) username = user;
-    document.getElementById("username-display").textContent = username;
-    initWebSocket();
-  } catch (error) {
-    console.error("Error obteniendo el nombre de usuario:", error);
-  } finally {
-    initMap();
-  }
+  initMap();
+  initWebSocket();
 }, { passive: true });
 
-document.getElementById("start-biking-button").addEventListener("click", async () => {
+document.getElementById("start-biking-button").addEventListener("click", () => {
+  const usernameInput = document.getElementById("username-input").value.trim();
+  if (usernameInput) {
+    username = usernameInput;
+  }
+
   document.getElementById("initial-screen").style.display = "none";
   document.getElementById("map-container").style.display = "block";
-  try {
-    await startUpdatingLocation();
-  } catch (error) {
+  document.getElementById("username-display").textContent = username;
+
+  startUpdatingLocation().catch(error => {
     showError("No se pudo obtener su ubicación.");
-  }
+  });
 });
 
 function initMap() {
