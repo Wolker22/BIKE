@@ -180,6 +180,7 @@ function updateUserLocation(data) {
       penalties: 0,
       usageTime: 0
     };
+    startUserUsageTimer(username); // Start usage timer for new user
   } else {
     users[username].marker.setPosition(location);
   }
