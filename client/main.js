@@ -172,7 +172,7 @@ async function startUpdatingLocation() {
 
 async function sendLocationToBackend(location) {
   try {
-    const response = await fetch("https://bikely.mooo.com/company/location", { // Usar tu dominio
+    const response = await fetch("https://bikely.mooo.com:3000/company/location", { // Usar tu dominio
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ location, username }),
