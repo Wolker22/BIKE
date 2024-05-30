@@ -6,6 +6,7 @@ let socket;
 let users = {};
 let penalties = {};
 let locationUpdateInterval = 30000; // 30 seconds
+let usageTimers = {};
 
 document.addEventListener("DOMContentLoaded", () => {
   initMap();
@@ -157,6 +158,7 @@ function updateUserList(usersData) {
         penalties: user.penalties || 0,
         usageTime: user.usageTime || 0
       };
+      startUserUsageTimer(user.username); // Start usage timer for new user
     } else {
       users[user.username].penalties = user.penalties || 0;
       users[user.username].usageTime = user.usageTime || 0;
@@ -230,6 +232,10 @@ function updateUserUsageTime(data) {
 function startUserUsageTimer(username) {
   if (!users[username]) return;
 
+  if (usageTimers[username]) {
+    clearInterval(usageTimers[username]);
+  }
+
   const updateUsageTime = () => {
     if (users[username]) {
       users[username].usageTime += 1;
@@ -238,7 +244,7 @@ function startUserUsageTimer(username) {
     }
   };
 
-  setInterval(updateUsageTime, 1000);
+  usageTimers[username] = setInterval(updateUsageTime, 1000);
 }
 
 function startLocationUpdateTimer() {
