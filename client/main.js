@@ -84,6 +84,7 @@ function initWebSocket() {
 
     socket.addEventListener("message", (event) => {
       const message = JSON.parse(event.data);
+      console.log("Mensaje recibido del servidor WebSocket:", message);
       if (message.type === "penalty") {
         showPenaltyNotification(message.data);
       } else if (message.type === "geofence") {
@@ -165,12 +166,14 @@ async function getUserLocation() {
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          console.log("Ubicación del usuario obtenida:", position.coords);
           resolve({
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           });
         },
         (error) => {
+          console.error("Error obteniendo la ubicación del usuario:", error);
           reject(new Error("No se pudo obtener la ubicación."));
         }
       );
@@ -191,22 +194,27 @@ async function startUpdatingLocation() {
         position: userLocation,
         map: map,
       });
+      console.log("Marcador del usuario creado en:", userLocation);
     } else {
       userMarker.setPosition(userLocation);
+      console.log("Marcador del usuario actualizado a:", userLocation);
     }
 
     intervalId = setInterval(async () => {
       const userLocation = await getUserLocation();
       userMarker.setPosition(userLocation);
+      console.log("Marcador del usuario actualizado a (intervalo):", userLocation);
       await sendLocationToBackend(userLocation);
     }, 30000); // 30 segundos
   } catch (error) {
+    console.error("Error en startUpdatingLocation:", error);
     showError("No se pudo obtener su ubicación.");
   }
 }
 
 async function sendLocationToBackend(location) {
   try {
+    console.log("Enviando ubicación al backend:", location);
     const response = await fetch("https://bikely.mooo.com:3000/company/location", { // Usar tu dominio
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -215,6 +223,7 @@ async function sendLocationToBackend(location) {
     if (!response.ok) {
       throw new Error("Error al enviar la ubicación.");
     }
+    console.log("Ubicación enviada al backend exitosamente");
   } catch (error) {
     console.error("Error al enviar la ubicación:", error);
   }
