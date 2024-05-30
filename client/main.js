@@ -64,6 +64,9 @@ function initMap() {
 
   directionsRenderer = new google.maps.DirectionsRenderer();
   directionsRenderer.setMap(map);
+
+  // Dibujar la geovalla que cubre toda Córdoba, España
+  drawGeofence();
 }
 
 function initWebSocket() {
@@ -101,7 +104,14 @@ function showPenaltyNotification(penalty) {
 }
 
 function drawGeofence(geofence) {
-  const geofenceCoords = geofence.coordinates.map(coord => ({ lat: coord.lat, lng: coord.lng }));
+  // Coordenadas que cubren toda Córdoba, España
+  const geofenceCoords = [
+    { lat: 37.9514, lng: -4.8734 },
+    { lat: 37.9514, lng: -4.6756 },
+    { lat: 37.8254, lng: -4.6756 },
+    { lat: 37.8254, lng: -4.8734 }
+  ];
+
   new google.maps.Polygon({
     paths: geofenceCoords,
     strokeColor: "#FF0000",
@@ -205,7 +215,6 @@ async function sendLocationToBackend(location) {
     console.error("Error al enviar la ubicación:", error);
   }
 }
-
 
 async function getOdooUsername() {
   try {
