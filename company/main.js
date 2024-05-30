@@ -109,7 +109,6 @@ function sendGeofenceToClients(geofenceId, coordinates) {
   }
 }
 
-
 function initWebSocket() {
   socket = new WebSocket("wss://bikely.mooo.com:3000");
 
@@ -136,32 +135,38 @@ function initWebSocket() {
   });
 }
 
-function updateUserList(users) {
-  const userListContainer = document.getElementById("user-list");
-  userListContainer.innerHTML = "";
-  users.forEach(user => {
-    const userElement = document.createElement("li");
-    userElement.innerHTML = `
-      <strong>Username:</strong> ${user.username}<br>
-      <strong>Penalties:</strong> ${user.penalties || 0}<br>
-      <strong>Usage Time:</strong> ${user.usageTime || 0} seconds<br>
-      <strong>Location:</strong> Latitude: ${user.location?.lat || 'N/A'}, Longitude: ${user.location?.lng || 'N/A'}
-    `;
-    userListContainer.appendChild(userElement);
+function updateUserList(usersData) {
+  usersData.forEach(user => {
+    if (!users[user.username]) {
+      users[user.username] = {
+        marker: new google.maps.Marker({
+          position: user.location || { lat: 0, lng: 0 },
+          map: map,
+          title: user.username
+        }),
+        penalties: user.penalties || 0,
+        usageTime: user.usageTime || 0
+      };
+    }
   });
+  renderUserList();
 }
 
 function updateUserLocation(data) {
   const { username, location } = data;
 
   if (!users[username]) {
-    users[username] = new google.maps.Marker({
-      position: location,
-      map: map,
-      title: username,
-    });
+    users[username] = {
+      marker: new google.maps.Marker({
+        position: location,
+        map: map,
+        title: username
+      }),
+      penalties: 0,
+      usageTime: 0
+    };
   } else {
-    users[username].setPosition(location);
+    users[username].marker.setPosition(location);
   }
 
   if (geofencePolygon && !google.maps.geometry.poly.containsLocation(new google.maps.LatLng(location), geofencePolygon)) {
@@ -181,16 +186,24 @@ function updateUserLocation(data) {
 
 function updateUserUsageTime(data) {
   const { username, usageTime } = data;
-  const userElement = document.querySelector(`li[data-username="${username}"]`);
-  if (userElement) {
-    const usageTimeElement = userElement.querySelector('.usage-time');
-    if (usageTimeElement) {
-      usageTimeElement.textContent = `Usage Time: ${usageTime} seconds`;
-    } else {
-      const newUsageTimeElement = document.createElement('div');
-      newUsageTimeElement.className = 'usage-time';
-      newUsageTimeElement.textContent = `Usage Time: ${usageTime} seconds`;
-      userElement.appendChild(newUsageTimeElement);
-    }
+  if (users[username]) {
+    users[username].usageTime = usageTime;
   }
+  renderUserList();
+}
+
+function renderUserList() {
+  const userListContainer = document.getElementById("user-list");
+  userListContainer.innerHTML = "";
+  Object.keys(users).forEach(username => {
+    const user = users[username];
+    const userElement = document.createElement("li");
+    userElement.innerHTML = `
+      <strong>Username:</strong> ${username}<br>
+      <strong>Penalties:</strong> ${user.penalties}<br>
+      <strong>Usage Time:</strong> ${user.usageTime} seconds<br>
+      <strong>Location:</strong> Latitude: ${user.marker.getPosition().lat()}, Longitude: ${user.marker.getPosition().lng()}
+    `;
+    userListContainer.appendChild(userElement);
+  });
 }
