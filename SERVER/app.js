@@ -29,11 +29,27 @@ let clients = {};
       credentials: true,
     }));
 
+    // Middleware para manejar solicitudes preflight OPTIONS
+    app.use((req, res, next) => {
+      if (req.method === 'OPTIONS') {
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        return res.status(200).json({});
+      }
+      next();
+    });
+
     app.use(express.json());
     app.use("/client", express.static(path.join(__dirname, "../client")));
     app.use("/company", express.static(path.join(__dirname, "../company")));
     app.use("/locations", locationsRouter);
     app.use("/geofence", geofenceRouter);
+
+    // Definir la ruta /odoo/username
+    app.get("/odoo/username", (req, res) => {
+      // Simular la obtención del nombre de usuario desde Odoo
+      res.status(200).json({ username: "testUser" });
+    });
 
     wss.on("connection", (ws) => {
       ws.on("message", (message) => {
