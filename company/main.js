@@ -119,7 +119,7 @@ function initWebSocket() {
 
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
-    console.log("WebSocket message received:", message); // Añadir log para depurar
+    console.log("WebSocket message received:", message);
     if (message.type === "geofenceUpdate") {
       console.log("Geofence updated:", message);
     } else if (message.type === "userList") {
@@ -128,6 +128,8 @@ function initWebSocket() {
       updateUserLocation(message.data);
     } else if (message.type === "usageTimeUpdate") {
       updateUserUsageTime(message.data);
+    } else if (message.type === "registerConfirmation") {
+      startUserUsageTimer(message.username);
     }
   });
 
@@ -140,9 +142,8 @@ function initWebSocket() {
   });
 }
 
-
 function updateUserList(usersData) {
-  console.log("Updating user list:", usersData); // Añadir log para depurar
+  console.log("Updating user list:", usersData);
   usersData.forEach(user => {
     if (!users[user.username]) {
       users[user.username] = {
@@ -161,7 +162,6 @@ function updateUserList(usersData) {
   });
   renderUserList();
 }
-
 
 function updateUserLocation(data) {
   const { username, location } = data;
@@ -223,4 +223,18 @@ function updateUserUsageTime(data) {
     users[username].usageTime = usageTime;
   }
   renderUserList();
+}
+
+function startUserUsageTimer(username) {
+  if (!users[username]) return;
+
+  const updateUsageTime = () => {
+    if (users[username]) {
+      users[username].usageTime += 1;
+      socket.send(JSON.stringify({ type: "usageTimeUpdate", data: { username, usageTime: users[username].usageTime } }));
+      renderUserList();
+    }
+  };
+
+  setInterval(updateUsageTime, 1000);
 }
