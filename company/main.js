@@ -11,7 +11,6 @@ let usageTimers = {};
 document.addEventListener("DOMContentLoaded", () => {
   initMap();
   initWebSocket();
-  window.addEventListener("beforeunload", handleWindowUnload);
 });
 
 function initMap() {
@@ -223,10 +222,46 @@ function renderUserList() {
       <strong>Penalties:</strong> ${user.penalties}<br>
       <strong>Usage Time:</strong> ${user.usageTime} seconds<br>
       <strong>Location:</strong> Latitude: ${user.marker.getPosition().lat()}, Longitude: ${user.marker.getPosition().lng()}<br>
-      <strong>Status:</strong> ${user.isConnected ? 'Connected' : 'Disconnected'}
+      <strong>Status:</strong> ${user.isConnected ? 'Connected' : 'Disconnected'}<br>
+      <button onclick="stopUserUsageTimer('${username}')">Stop Timer</button>
+      <button onclick="generateExcelForUser('${username}')">Generate Excel</button>
     `;
     userListContainer.appendChild(userElement);
   });
+}
+
+function stopUserUsageTimer(username) {
+  if (usageTimers[username]) {
+    clearInterval(usageTimers[username]);
+    delete usageTimers[username];
+    console.log(`Timer stopped for user ${username}`);
+  }
+}
+
+function generateExcelForUser(username) {
+  const user = users[username];
+  if (!user) {
+    console.error(`User ${username} not found`);
+    return;
+  }
+
+  const userData = [
+    ['Username', 'Penalties', 'Usage Time', 'Latitude', 'Longitude', 'Status'],
+    [
+      username,
+      user.penalties,
+      user.usageTime,
+      user.marker.getPosition().lat(),
+      user.marker.getPosition().lng(),
+      user.isConnected ? 'Connected' : 'Disconnected'
+    ]
+  ];
+
+  const worksheet = XLSX.utils.aoa_to_sheet(userData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'User Data');
+  
+  XLSX.writeFile(workbook, `${username}_data.xlsx`);
 }
 
 function updateUserUsageTime(data) {
@@ -268,15 +303,10 @@ function startLocationUpdateTimer() {
 function markUsersAsDisconnected() {
   Object.keys(users).forEach(username => {
     users[username].isConnected = false;
-    clearInterval(usageTimers[username]);
-    delete usageTimers[username];
+    if (usageTimers[username]) {
+      clearInterval(usageTimers[username]);
+      delete usageTimers[username];
+    }
   });
   renderUserList();
 }
-
-function handleWindowUnload(event) {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({ type: "unregister", username: "company" }));
-  }
-}
-
