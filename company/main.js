@@ -91,12 +91,16 @@ function sendGeofenceToBackend(geofenceId, coordinates) {
 }
 
 function sendGeofenceToClients(geofenceId, coordinates) {
-  const message = {
-    type: 'geofence',
-    geofenceId: geofenceId,
-    coordinates: coordinates
-  };
-  socket.send(JSON.stringify(message));
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    const message = {
+      type: 'geofence',
+      geofenceId: geofenceId,
+      coordinates: coordinates
+    };
+    socket.send(JSON.stringify(message));
+  } else {
+    console.error('El socket no está abierto o no está definido.');
+  }
 }
 
 function initWebSocket() {
