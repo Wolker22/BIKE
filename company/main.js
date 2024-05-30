@@ -88,13 +88,17 @@ function sendGeofenceToBackend(geofenceId, coordinates) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(geofenceData)
   })
-  .then(response => response.json())
+  .then(response => {
+    if (!response.ok) {
+      return response.json().then(err => { throw new Error(err.message); });
+    }
+    return response.json();
+  })
   .then(data => {
     console.log('Geofence guardada:', data);
   })
   .catch(error => console.error('Error al guardar la geofence:', error));
 }
-
 
 function sendGeofenceToClients(geofenceId, coordinates) {
   if (socket && socket.readyState === WebSocket.OPEN) {

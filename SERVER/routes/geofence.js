@@ -14,6 +14,7 @@ router.post('/', async (req, res) => {
     await newGeofence.save();
     res.status(201).json({ message: 'Geofence created successfully' });
   } catch (error) {
+    console.error('Error saving geofence:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
