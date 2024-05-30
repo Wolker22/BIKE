@@ -11,6 +11,7 @@ let usageTimers = {};
 document.addEventListener("DOMContentLoaded", () => {
   initMap();
   initWebSocket();
+  window.addEventListener("beforeunload", handleWindowUnload);
 });
 
 function initMap() {
@@ -272,3 +273,10 @@ function markUsersAsDisconnected() {
   });
   renderUserList();
 }
+
+function handleWindowUnload(event) {
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: "unregister", username: "company" }));
+  }
+}
+
