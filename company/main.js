@@ -125,7 +125,7 @@ function initWebSocket() {
       updateUserList(message.data);
     } else if (message.type === "locationUpdate") {
       updateUserLocation(message.data);
-    } else if (message.type === "usageTime") {
+    } else if (message.type === "usageTimeUpdate") {
       updateUserUsageTime(message.data);
     }
   });
@@ -180,5 +180,16 @@ function updateUserLocation(data) {
 
 function updateUserUsageTime(data) {
   const { username, usageTime } = data;
-  document.getElementById(`usage-time-${username}`).textContent = `Usage Time: ${usageTime} seconds`;
+  const userElement = document.querySelector(`li[data-username="${username}"]`);
+  if (userElement) {
+    const usageTimeElement = userElement.querySelector('.usage-time');
+    if (usageTimeElement) {
+      usageTimeElement.textContent = `Usage Time: ${usageTime} seconds`;
+    } else {
+      const newUsageTimeElement = document.createElement('div');
+      newUsageTimeElement.className = 'usage-time';
+      newUsageTimeElement.textContent = `Usage Time: ${usageTime} seconds`;
+      userElement.appendChild(newUsageTimeElement);
+    }
+  }
 }
