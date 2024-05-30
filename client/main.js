@@ -9,7 +9,9 @@ let socket;
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    if (user) username = user;
+    // Obtiene el valor del input de nombre de usuario
+    const userInput = document.getElementById("username-input").value.trim();
+    if (userInput) username = userInput; // Verifica si hay un valor y lo asigna a username
     document.getElementById("username-display").textContent = username;
     initWebSocket();
   } catch (error) {
@@ -18,6 +20,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     initMap();
   }
 }, { passive: true });
+
 
 document.getElementById("start-biking-button").addEventListener("click", async () => {
   const userInput = document.getElementById("username-input").value.trim(); // Obtener el valor del input y eliminar espacios en blanco al inicio y al final
