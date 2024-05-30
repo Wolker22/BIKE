@@ -23,9 +23,10 @@ let clients = {};
     await connectDB();
     console.log('MongoDB connected...');
 
+    // Configuración de CORS
     app.use(cors({
       origin: 'https://bikely.mooo.com',
-      methods: ['GET', 'POST', 'OPTIONS'],
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
       credentials: true,
     }));
@@ -38,6 +39,7 @@ let clients = {};
         res.header('Access-Control-Allow-Origin', 'https://bikely.mooo.com');
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+        res.header('Access-Control-Allow-Credentials', 'true');
         return res.sendStatus(200);
       }
       next();
@@ -50,7 +52,6 @@ let clients = {};
 
     // Definir la ruta /odoo/username
     app.get("/odoo/username", (req, res) => {
-      // Simular la obtención del nombre de usuario desde Odoo
       res.status(200).json({ username: "testUser" });
     });
 
