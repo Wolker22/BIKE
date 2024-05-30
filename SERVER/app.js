@@ -5,7 +5,7 @@ const cors = require("cors");
 const WebSocket = require("ws");
 const path = require("path");
 const locationsRouter = require("./routes/locations");
-const geofenceRouter = require("./routes/geofence");
+const geofenceRouter = require("./routes/geofence"); // Importar el enrutador de geofence
 const connectDB = require('./config/db');
 
 // Leer certificados SSL
@@ -18,8 +18,6 @@ const server = https.createServer(credentials, app);
 const wss = new WebSocket.Server({ server });
 
 let clients = {};
-const exitTimers = {};
-const geofences = []; // Replace with actual geofence data
 
 (async () => {
   try {
@@ -62,25 +60,22 @@ const geofences = []; // Replace with actual geofence data
       res.status(200).json({ message: 'Geofence saved successfully' });
     });
 
+    // Resto del código para calcular penalizaciones, etc.
+    // ...
+
     // Manejar conexiones WebSocket
     wss.on("connection", (ws) => {
       ws.on("message", (message) => {
         const parsedMessage = JSON.parse(message);
         if (parsedMessage.type === "register") {
-          clients[parsedMessage.username] = { ws, location: null };
+          clients[parsedMessage.username] = ws;
           sendUserList();
-        } else if (parsedMessage.type === "locationUpdate") {
-          const { username, location } = parsedMessage;
-          if (clients[username]) {
-            clients[username].location = location;
-            checkGeofenceExit(username, location);
-          }
         }
       });
 
       ws.on("close", () => {
         for (const [username, clientWs] of Object.entries(clients)) {
-          if (clientWs.ws === ws) {
+          if (clientWs === ws) {
             delete clients[username];
             sendUserList();
             break;
@@ -92,42 +87,7 @@ const geofences = []; // Replace with actual geofence data
     function sendUserList() {
       const users = Object.keys(clients).map(username => ({ username }));
       const message = JSON.stringify({ type: "userList", data: users });
-      Object.values(clients).forEach(client => client.ws.send(message));
-    }
-
-    function isInsideGeofence(location, geofence) {
-      // Implement the logic to check if the location is inside the geofence
-      // This is a placeholder implementation
-      const [lat, lng] = location;
-      const [geofenceLat, geofenceLng] = geofence.coordinates;
-      return Math.sqrt((lat - geofenceLat) ** 2 + (lng - geofenceLng) ** 2) < geofence.radius;
-    }
-
-    function checkGeofenceExit(username, location) {
-      const userGeofence = geofences.find(geofence => isInsideGeofence(location, geofence));
-
-      if (userGeofence) {
-        if (exitTimers[username]) {
-          clearTimeout(exitTimers[username]);
-          delete exitTimers[username];
-        }
-      } else {
-        if (!exitTimers[username]) {
-          exitTimers[username] = setTimeout(() => applyPenalty(username), 30000);
-        }
-      }
-    }
-
-    async function applyPenalty(username) {
-      // Implement logic to apply penalty to the user
-      console.log(`Applying penalty to user ${username}`);
-
-      // Example: Update the user penalty in the database
-      // await User.updateOne({ username }, { $inc: { penalties: 1 } });
-
-      if (clients[username]) {
-        clients[username].ws.send(JSON.stringify({ type: "penaltyApplied" }));
-      }
+      Object.values(clients).forEach(client => client.send(message));
     }
 
     const PORT = process.env.PORT || 3000;
