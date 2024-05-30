@@ -142,9 +142,9 @@ function updateUserList(users) {
     const userElement = document.createElement("li");
     userElement.innerHTML = `
       <strong>Username:</strong> ${user.username}<br>
-      <strong>Penalties:</strong> ${user.penalties}<br>
-      <strong>Usage Time:</strong> ${user.usageTime} seconds<br>
-      <strong>Location:</strong> Latitude: ${user.location.lat}, Longitude: ${user.location.lng}
+      <strong>Penalties:</strong> ${user.penalties || 0}<br>
+      <strong>Usage Time:</strong> ${user.usageTime || 0} seconds<br>
+      <strong>Location:</strong> Latitude: ${user.location?.lat || 'N/A'}, Longitude: ${user.location?.lng || 'N/A'}
     `;
     userListContainer.appendChild(userElement);
   });
