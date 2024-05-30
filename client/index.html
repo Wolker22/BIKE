@@ -3,25 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Bike App</title>
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDELHfVXVoMrugwiLeeh7dN3PYUoe9oH2Y&libraries=places"></script>
-  <script defer src="app.js"></script>
-  <link rel="stylesheet" href="styles.css">
+  <title>Google Map</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="initial-screen">
-    <h1>Bienvenido a Bike App</h1>
-    <label for="username-input">Nombre de usuario:</label>
-    <input type="text" id="username-input" placeholder="Introduce tu nombre de usuario">
-    <button id="start-biking-button">Comenzar</button>
+  <div id="initial-screen" class="initial-screen">
+    <button id="start-biking-button" class="start-button">Iniciar a usar la bici</button>
   </div>
-  <div id="map-container" style="display: none;">
-    <div id="username-display"></div>
+  <div class="bg-gray d-flex justify-content-between mt-1">
+    <button id="logout-button">Cerrar Sesión</button>
+    <input type="text" id="place-input" class="input" placeholder="Buscar un lugar...">
+  </div>
+  <div id="map-container" class="map-container" style="display: none;">
+    <div id="notification-container"></div>
     <div id="map"></div>
-    <input id="place-input" type="text" placeholder="Introduce un lugar">
-    <div id="error-message" style="display: none;"></div>
-    <div id="penalty-count">Multas: <span id="penalty-count-value">0</span></div>
-    <div id="usage-time">Tiempo de uso: 0 segundos</div>
   </div>
+  <div id="error-message" class="notification" style="display: none;"></div>
+  <script src="./main.js"></script>
+  <script async src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDELHfVXVoMrugwiLeeh7dN3PYUoe9oH2Y&callback=initMap&libraries=places,geometry"></script>
 </body>
 </html>
