@@ -18,6 +18,7 @@ const server = https.createServer(credentials, app);
 const wss = new WebSocket.Server({ server });
 
 let clients = {};
+const userViolations = {}; // { username: { violations: 0, enterTime: null, locations: [] } }
 
 (async () => {
   try {
@@ -52,12 +53,30 @@ let clients = {};
       res.status(200).json(penalties);
     });
 
+    app.post("/geofence", (req, res) => {
+      const { geofence, username } = req.body;
+      // Aquí puedes guardar la geofence en la base de datos y enviar las actualizaciones necesarias a los clientes.
+      res.sendStatus(200);
+    });
+
     async function calculatePenaltiesForUsers(coords) {
       const users = await getUsersWithinGeofence(coords);
-      const penalties = users.map((user) => ({
-        username: user.username,
-        reason: "Dentro de una geocerca prohibida",
-      }));
+      const currentTime = new Date();
+
+      const penalties = users.map((user) => {
+        if (!userViolations[user.username]) {
+          userViolations[user.username] = { violations: 0, enterTime: currentTime, locations: [] };
+        }
+        userViolations[user.username].violations += 1;
+        userViolations[user.username].locations.push(user.location);
+        return {
+          username: user.username,
+          reason: "Dentro de una geocerca prohibida",
+          violations: userViolations[user.username].violations,
+          duration: currentTime - userViolations[user.username].enterTime,
+          locations: userViolations[user.username].locations,
+        };
+      });
 
       penalties.forEach((penalty) => {
         if (clients[penalty.username]) {

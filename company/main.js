@@ -7,6 +7,7 @@ let socket;
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("geofence-button").addEventListener("click", defineGeofence);
   initWebSocket();
+  initMap();
 });
 
 function initMap() {
@@ -79,7 +80,6 @@ function loadGeofenceFromLocal() {
   }
 }
 
-
 function sendGeofenceToBackend(geofenceId, coordinates) {
   const geofenceData = {
     geofenceId: geofenceId,
@@ -105,7 +105,6 @@ function sendGeofenceToBackend(geofenceId, coordinates) {
   })
   .catch(error => console.error('Error al guardar la geofence:', error));
 }
-
 
 function sendGeofenceToClients(geofenceId, coordinates) {
   if (socket && socket.readyState === WebSocket.OPEN) {
