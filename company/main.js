@@ -76,10 +76,17 @@ function loadGeofenceFromLocal() {
 }
 
 function sendGeofenceToBackend(geofenceId, coordinates) {
+  const geofenceData = {
+    geofenceId: geofenceId,
+    coordinates: coordinates
+  };
+
+  console.log('Sending geofence data to backend:', geofenceData);
+
   fetch('https://bikely.mooo.com:3000/geofence', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ geofenceId, coordinates })
+    body: JSON.stringify(geofenceData)
   })
   .then(response => response.json())
   .then(data => {
@@ -87,6 +94,7 @@ function sendGeofenceToBackend(geofenceId, coordinates) {
   })
   .catch(error => console.error('Error al guardar la geofence:', error));
 }
+
 
 function sendGeofenceToClients(geofenceId, coordinates) {
   if (socket && socket.readyState === WebSocket.OPEN) {
