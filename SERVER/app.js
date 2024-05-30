@@ -42,15 +42,6 @@ let clients = {};
           clients[parsedMessage.username] = ws;
         }
       });
-
-      ws.on("close", () => {
-        for (const username in clients) {
-          if (clients[username] === ws) {
-            delete clients[username];
-            break;
-          }
-        }
-      });
     });
 
     app.post("/geofence/penalties", async (req, res) => {
