@@ -31,7 +31,7 @@ document.getElementById("start-biking-button").addEventListener("click", async (
 });
 
 function initMap() {
-  const coords = { lat: 37.91495442422956, lng: -4.716284234252457 };
+  const coords = { lat: 37.888175, lng: -4.779383 };
 
   map = new google.maps.Map(document.getElementById("map"), {
     zoom: 12,
