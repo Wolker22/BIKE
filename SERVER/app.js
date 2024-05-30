@@ -8,7 +8,7 @@ const locationsRouter = require("./routes/locations");
 const geofenceRouter = require("./routes/geofence");
 const connectDB = require('./config/db');
 
-// Read SSL certificates
+// Leer certificados SSL
 const privateKey = fs.readFileSync('/etc/letsencrypt/live/bikely.mooo.com/privkey.pem', 'utf8');
 const certificate = fs.readFileSync('/etc/letsencrypt/live/bikely.mooo.com/fullchain.pem', 'utf8');
 const credentials = { key: privateKey, cert: certificate };
@@ -18,13 +18,15 @@ const server = https.createServer(credentials, app);
 const wss = new WebSocket.Server({ server });
 
 let clients = {};
+const exitTimers = {};
+const geofences = []; // Replace with actual geofence data
 
 (async () => {
   try {
     await connectDB();
     console.log('MongoDB connected...');
 
-    // CORS configuration
+    // Configuración de CORS
     const corsOptions = {
       origin: 'https://bikely.mooo.com:3000',
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -32,70 +34,53 @@ let clients = {};
       credentials: true,
     };
     app.use(cors(corsOptions));
-    app.options('*', cors(corsOptions)); // Handle all OPTIONS requests globally
+    app.options('*', cors(corsOptions)); // Manejar todas las solicitudes OPTIONS globalmente
 
     app.use(express.json());
 
-    // Define routes
+    // Definir rutas
     app.use("/client", express.static(path.join(__dirname, "../client")));
     app.use("/company", express.static(path.join(__dirname, "../company")));
     app.use("/locations", locationsRouter);
-    app.use("/geofence", geofenceRouter);
+    app.use("/geofence", geofenceRouter); // Usar el enrutador de geofence
 
     app.get("/odoo/username", (req, res) => {
       res.status(200).json({ username: "testUser" });
     });
 
-    app.post("/geofence/penalties", async (req, res) => {
-      const { coords } = req.body;
-      const penalties = await calculatePenaltiesForUsers(coords);
-      res.status(200).json(penalties);
+    // Manejar solicitudes POST a /geofence
+    app.post("/geofence", async (req, res) => {
+      const { name, coordinates } = req.body;
+
+      if (!name || !coordinates) {
+        return res.status(400).json({ error: 'Name and coordinates are required' });
+      }
+
+      // Aquí deberías guardar la geofence en la base de datos
+      // ...
+
+      res.status(200).json({ message: 'Geofence saved successfully' });
     });
 
-    async function calculatePenaltiesForUsers(coords) {
-      const users = await getUsersWithinGeofence(coords);
-      const penalties = users.map((user) => ({
-        username: user.username,
-        reason: "Dentro de una geocerca prohibida",
-      }));
-
-      penalties.forEach((penalty) => {
-        if (clients[penalty.username]) {
-          clients[penalty.username].send(JSON.stringify({ type: "penalty", data: penalty }));
-        }
-      });
-
-      return penalties;
-    }
-
-    async function getUsersWithinGeofence(coords) {
-      // Aquí deberías consultar tu base de datos para obtener las ubicaciones de los usuarios
-      // y verificar si están dentro de las coordenadas de la geofence
-      return [
-        { username: "usuario1", location: { lat: 37.914954, lng: -4.716284 } },
-      ];
-    }
-
-    app.post("/company/location", async (req, res) => {
-      const { location, username } = req.body;
-      console.log("Coordenadas recibidas:", location);
-      console.log("Usuario:", username);
-      // Aquí deberías almacenar la ubicación en la base de datos
-      res.sendStatus(200);
-    });
-
+    // Manejar conexiones WebSocket
     wss.on("connection", (ws) => {
       ws.on("message", (message) => {
         const parsedMessage = JSON.parse(message);
         if (parsedMessage.type === "register") {
-          clients[parsedMessage.username] = ws;
+          clients[parsedMessage.username] = { ws, location: null };
           sendUserList();
+        } else if (parsedMessage.type === "locationUpdate") {
+          const { username, location } = parsedMessage;
+          if (clients[username]) {
+            clients[username].location = location;
+            checkGeofenceExit(username, location);
+          }
         }
       });
 
       ws.on("close", () => {
         for (const [username, clientWs] of Object.entries(clients)) {
-          if (clientWs === ws) {
+          if (clientWs.ws === ws) {
             delete clients[username];
             sendUserList();
             break;
@@ -107,7 +92,42 @@ let clients = {};
     function sendUserList() {
       const users = Object.keys(clients).map(username => ({ username }));
       const message = JSON.stringify({ type: "userList", data: users });
-      Object.values(clients).forEach(client => client.send(message));
+      Object.values(clients).forEach(client => client.ws.send(message));
+    }
+
+    function isInsideGeofence(location, geofence) {
+      // Implement the logic to check if the location is inside the geofence
+      // This is a placeholder implementation
+      const [lat, lng] = location;
+      const [geofenceLat, geofenceLng] = geofence.coordinates;
+      return Math.sqrt((lat - geofenceLat) ** 2 + (lng - geofenceLng) ** 2) < geofence.radius;
+    }
+
+    function checkGeofenceExit(username, location) {
+      const userGeofence = geofences.find(geofence => isInsideGeofence(location, geofence));
+
+      if (userGeofence) {
+        if (exitTimers[username]) {
+          clearTimeout(exitTimers[username]);
+          delete exitTimers[username];
+        }
+      } else {
+        if (!exitTimers[username]) {
+          exitTimers[username] = setTimeout(() => applyPenalty(username), 30000);
+        }
+      }
+    }
+
+    async function applyPenalty(username) {
+      // Implement logic to apply penalty to the user
+      console.log(`Applying penalty to user ${username}`);
+
+      // Example: Update the user penalty in the database
+      // await User.updateOne({ username }, { $inc: { penalties: 1 } });
+
+      if (clients[username]) {
+        clients[username].ws.send(JSON.stringify({ type: "penaltyApplied" }));
+      }
     }
 
     const PORT = process.env.PORT || 3000;
