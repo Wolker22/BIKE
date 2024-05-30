@@ -54,7 +54,11 @@ function defineGeofence() {
   if (geofencePolygon) {
     geofencePolygon.setMap(null);
   }
-  drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+  if (drawingManager) {
+    drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+  } else {
+    console.error("drawingManager no está definido");
+  }
 }
 
 function saveGeofenceToLocal(coordinates) {
