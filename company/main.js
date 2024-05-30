@@ -8,6 +8,7 @@ let socket;
 document.addEventListener("DOMContentLoaded", () => {
   initMap();
   initWebSocket();
+  document.getElementById("geofence-button").addEventListener("click", defineGeofence);
 });
 
 function initMap() {
@@ -49,6 +50,13 @@ function initMap() {
   });
 
   loadGeofenceFromLocal();
+}
+
+function defineGeofence() {
+  if (geofencePolygon) {
+    geofencePolygon.setMap(null);
+  }
+  drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
 }
 
 function saveGeofenceToLocal(coordinates) {
@@ -103,10 +111,22 @@ function initWebSocket() {
     const message = JSON.parse(event.data);
     if (message.type === "geofenceUpdate") {
       console.log("Geofence actualizada:", message);
+    } else if (message.type === "userList") {
+      updateUserList(message.data);
     }
   });
 
   socket.addEventListener("close", () => {
     console.log("Desconectado del servidor WebSocket");
+  });
+}
+
+function updateUserList(users) {
+  const userListContainer = document.getElementById("user-list");
+  userListContainer.innerHTML = "";
+  users.forEach(user => {
+    const userElement = document.createElement("li");
+    userElement.textContent = user.username;
+    userListContainer.appendChild(userElement);
   });
 }

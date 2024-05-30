@@ -48,12 +48,12 @@ let clients = {};
 
     app.post("/geofence/penalties", async (req, res) => {
       const { coords } = req.body;
-      const penalties = calculatePenaltiesForUsers(coords);
+      const penalties = await calculatePenaltiesForUsers(coords);
       res.status(200).json(penalties);
     });
 
-    function calculatePenaltiesForUsers(coords) {
-      const users = getUsersWithinGeofence(coords);
+    async function calculatePenaltiesForUsers(coords) {
+      const users = await getUsersWithinGeofence(coords);
       const penalties = users.map((user) => ({
         username: user.username,
         reason: "Dentro de una geocerca prohibida",
@@ -68,16 +68,19 @@ let clients = {};
       return penalties;
     }
 
-    function getUsersWithinGeofence(coords) {
+    async function getUsersWithinGeofence(coords) {
+      // Aquí deberías consultar tu base de datos para obtener las ubicaciones de los usuarios
+      // y verificar si están dentro de las coordenadas de la geofence
       return [
         { username: "usuario1", location: { lat: 37.914954, lng: -4.716284 } },
       ];
     }
 
-    app.post("/company/location", (req, res) => {
+    app.post("/company/location", async (req, res) => {
       const { location, username } = req.body;
       console.log("Coordenadas recibidas:", location);
       console.log("Usuario:", username);
+      // Aquí deberías almacenar la ubicación en la base de datos
       res.sendStatus(200);
     });
 
@@ -86,9 +89,26 @@ let clients = {};
         const parsedMessage = JSON.parse(message);
         if (parsedMessage.type === "register") {
           clients[parsedMessage.username] = ws;
+          sendUserList();
+        }
+      });
+
+      ws.on("close", () => {
+        for (const [username, clientWs] of Object.entries(clients)) {
+          if (clientWs === ws) {
+            delete clients[username];
+            sendUserList();
+            break;
+          }
         }
       });
     });
+
+    function sendUserList() {
+      const users = Object.keys(clients).map(username => ({ username }));
+      const message = JSON.stringify({ type: "userList", data: users });
+      Object.values(clients).forEach(client => client.send(message));
+    }
 
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, () => {
