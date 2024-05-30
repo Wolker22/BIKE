@@ -5,6 +5,7 @@ let geofenceCoordinates = null;
 let socket;
 let users = {};
 let penalties = {};
+let locationUpdateInterval = 30000; // 30 seconds
 
 document.addEventListener("DOMContentLoaded", () => {
   initMap();
@@ -124,6 +125,7 @@ function initWebSocket() {
       console.log("Geofence updated:", message);
     } else if (message.type === "userList") {
       updateUserList(message.data);
+      startLocationUpdateTimer();
     } else if (message.type === "locationUpdate") {
       updateUserLocation(message.data);
     } else if (message.type === "usageTimeUpdate") {
@@ -237,4 +239,14 @@ function startUserUsageTimer(username) {
   };
 
   setInterval(updateUsageTime, 1000);
+}
+
+function startLocationUpdateTimer() {
+  setInterval(() => {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: "requestLocationUpdates" }));
+    } else {
+      console.error("Socket is not open or undefined.");
+    }
+  }, locationUpdateInterval);
 }
