@@ -30,40 +30,48 @@ document.getElementById("start-biking-button").addEventListener("click", async (
   }
 });
 
-function initMap() {
-  const coords = { lat: 37.91495442422956, lng: -4.716284234252457 };
+function initWebSocket() {
+  try {
+    socket = new WebSocket("wss://bikely.mooo.com:3000");
 
-  map = new google.maps.Map(document.getElementById("map"), {
-    zoom: 12,
-    center: coords,
+    socket.addEventListener("open", () => {
+      console.log("Conectado al servidor WebSocket");
+      socket.send(JSON.stringify({ type: "register", username }));
+    });
+
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(event.data);
+      if (message.type === "penalty") {
+        showPenaltyNotification(message.data);
+      } else if (message.type === "geofence") {
+        drawGeofence(message.data);
+      } else if (message.type === "usageTimeUpdate") {
+        updateUsageTime(message.data);
+      }
+    });
+
+    socket.addEventListener("close", () => {
+      console.log("Desconectado del servidor WebSocket");
+    });
+  } catch (error) {
+    console.error("Error conectando al WebSocket:", error);
+  }
+}
+
+function drawGeofence(geofence) {
+  if (geofencePolygon) {
+    geofencePolygon.setMap(null);
+  }
+  const geofenceCoords = geofence.coordinates.map(coord => ({ lat: coord.lat, lng: coord.lng }));
+  geofencePolygon = new google.maps.Polygon({
+    paths: geofenceCoords,
+    strokeColor: "#FF0000",
+    strokeOpacity: 0.8,
+    strokeWeight: 2,
+    fillColor: "#FF0000",
+    fillOpacity: 0.35,
+    map: map,
   });
-
-  autocomplete = new google.maps.places.Autocomplete(
-    document.getElementById("place-input"),
-    { types: ["geocode"] }
-  );
-
-  autocomplete.bindTo("bounds", map);
-
-  autocomplete.addListener("place_changed", async () => {
-    const place = autocomplete.getPlace();
-    if (!place.geometry || !place.geometry.location) {
-      showError("No se encontró información de este lugar.");
-      return;
-    }
-
-    try {
-      const userLocation = await getUserLocation();
-      map.setCenter(userLocation);
-      map.setZoom(19);
-      traceRouteToPlace(place.geometry.location, place.name, place.photos?.[0]?.getUrl());
-    } catch (error) {
-      showError("No se pudo obtener su ubicación.");
-    }
-  });
-
-  directionsRenderer = new google.maps.DirectionsRenderer();
-  directionsRenderer.setMap(map);
 }
 
 function initWebSocket() {
@@ -77,6 +85,7 @@ function initWebSocket() {
 
     socket.addEventListener("message", (event) => {
       const message = JSON.parse(event.data);
+      console.log("Mensaje recibido del WebSocket:", message);
       if (message.type === "penalty") {
         showPenaltyNotification(message.data);
       } else if (message.type === "geofence") {

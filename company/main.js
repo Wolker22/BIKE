@@ -109,6 +109,7 @@ function sendGeofenceToClients(geofenceId, coordinates) {
   }
 }
 
+
 function initWebSocket() {
   socket = new WebSocket("wss://bikely.mooo.com:3000");
 
