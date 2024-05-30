@@ -119,6 +119,7 @@ function initWebSocket() {
 
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
+    console.log("WebSocket message received:", message); // Añadir log para depurar
     if (message.type === "geofenceUpdate") {
       console.log("Geofence updated:", message);
     } else if (message.type === "userList") {
@@ -139,7 +140,9 @@ function initWebSocket() {
   });
 }
 
+
 function updateUserList(usersData) {
+  console.log("Updating user list:", usersData); // Añadir log para depurar
   usersData.forEach(user => {
     if (!users[user.username]) {
       users[user.username] = {
@@ -158,6 +161,7 @@ function updateUserList(usersData) {
   });
   renderUserList();
 }
+
 
 function updateUserLocation(data) {
   const { username, location } = data;
@@ -203,6 +207,10 @@ function updateUserUsageTime(data) {
 
 function renderUserList() {
   const userListContainer = document.getElementById("user-list");
+  if (!userListContainer) {
+    console.error("User list container not found");
+    return;
+  }
   userListContainer.innerHTML = "";
   Object.keys(users).forEach(username => {
     const user = users[username];
