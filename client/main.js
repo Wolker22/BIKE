@@ -68,7 +68,7 @@ function initMap() {
 
 function initWebSocket() {
   try {
-    socket = new WebSocket("wss://localhost:3000"); // Usar wss:// para conexiones seguras con HTTPS
+    socket = new WebSocket("wss://bikely.mooo.com"); // Usar tu dominio
 
     socket.addEventListener("open", () => {
       console.log("Conectado al servidor WebSocket");
@@ -170,11 +170,9 @@ async function startUpdatingLocation() {
   }
 }
 
-
-
 async function sendLocationToBackend(location) {
   try {
-    const response = await fetch("https://localhost:3000/company/location", { // Cambiar a http:// si no usas HTTPS
+    const response = await fetch("https://bikely.mooo.com/company/location", { // Usar tu dominio
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ location, username }),
@@ -189,7 +187,7 @@ async function sendLocationToBackend(location) {
 
 async function getOdooUsername() {
   try {
-    const response = await fetch("https://localhost:3000/odoo/username"); // Cambiar a http:// si no usas HTTPS
+    const response = await fetch("https://bikely.mooo.com/odoo/username"); // Usar tu dominio
     if (!response.ok) {
       throw new Error("Error al obtener el nombre de usuario.");
     }
