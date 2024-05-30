@@ -1,5 +1,4 @@
 let map;
-let drawingManager;
 let geofencePolygon;
 let geofenceCoordinates = null;
 let socket;
@@ -12,115 +11,32 @@ let penaltyTime = 5000; // 5 seconds for penalty
 document.addEventListener("DOMContentLoaded", () => {
   initMap();
   initWebSocket();
-  initGeofenceButton(); // Initialize the geofence button event listener
   loadUserUsageTimesFromLocal(); // Load user usage times from localStorage
 });
 
 function initMap() {
-  const coords = { lat: 37.914954, lng: -4.716284 };
+  const coords = { lat: 37.888175, lng: -4.779383 }; // Center of Córdoba, Spain
 
   map = new google.maps.Map(document.getElementById("map"), {
     zoom: 12,
     center: coords,
   });
 
-  drawingManager = new google.maps.drawing.DrawingManager({
-    drawingMode: google.maps.drawing.OverlayType.POLYGON,
-    drawingControl: false, // Disable default drawing controls
-    polygonOptions: {
-      editable: true,
-      draggable: true,
-      strokeColor: '#FF0000', // Red color for the geofence border
-      fillColor: '#FF0000', // Red color for the geofence area
-      fillOpacity: 0.2, // Transparency of the geofence area
-    }
+  // Set geofence to cover all of Córdoba, Spain
+  geofenceCoordinates = [
+    { lat: 37.9514, lng: -4.8734 },
+    { lat: 37.9514, lng: -4.6756 },
+    { lat: 37.8254, lng: -4.6756 },
+    { lat: 37.8254, lng: -4.8734 },
+  ];
+
+  geofencePolygon = new google.maps.Polygon({
+    paths: geofenceCoordinates,
+    strokeColor: '#FF0000', // Red color for the geofence border
+    fillColor: '#FF0000', // Red color for the geofence area
+    fillOpacity: 0.2, // Transparency of the geofence area
   });
-
-  drawingManager.setMap(map);
-
-  google.maps.event.addListener(drawingManager, 'overlaycomplete', event => {
-    if (geofencePolygon) {
-      geofencePolygon.setMap(null);
-    }
-    geofencePolygon = event.overlay;
-    const coordinates = geofencePolygon.getPath().getArray().map(latlng => ({
-      lat: latlng.lat(),
-      lng: latlng.lng()
-    }));
-    geofenceCoordinates = coordinates;
-    saveGeofenceToLocal(coordinates);
-    sendGeofenceToBackend("geofence1", coordinates);
-    sendGeofenceToClients("geofence1", coordinates);
-  });
-
-  loadGeofenceFromLocal();
-}
-
-function initGeofenceButton() {
-  const geofenceButton = document.getElementById("geofence-button");
-  geofenceButton.addEventListener("click", () => {
-    drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
-  });
-}
-
-function saveGeofenceToLocal(coordinates) {
-  localStorage.setItem('geofenceCoordinates', JSON.stringify(coordinates));
-}
-
-function loadGeofenceFromLocal() {
-  const savedCoordinates = localStorage.getItem('geofenceCoordinates');
-  if (savedCoordinates) {
-    geofenceCoordinates = JSON.parse(savedCoordinates);
-    const polygonPath = geofenceCoordinates.map(coord => ({ lat: coord.lat, lng: coord.lng }));
-    geofencePolygon = new google.maps.Polygon({
-      paths: polygonPath,
-      editable: true,
-      draggable: true,
-      strokeColor: '#FF0000', // Red color for the geofence border
-      fillColor: '#FF0000', // Red color for the geofence area
-      fillOpacity: 0.2, // Transparency of the geofence area
-    });
-    geofencePolygon.setMap(map);
-  }
-}
-
-function sendGeofenceToBackend(geofenceId, coordinates) {
-  const geofenceData = {
-    geofenceId: geofenceId,
-    name: 'My Geofence',
-    coordinates: coordinates
-  };
-
-  console.log('Sending geofence data to backend:', geofenceData);
-
-  fetch('https://bikely.mooo.com:3000/geofence', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(geofenceData)
-  })
-  .then(response => {
-    if (!response.ok) {
-      return response.json().then(err => { throw new Error(err.message); });
-    }
-    return response.json();
-  })
-  .then(data => {
-    console.log('Geofence saved:', data);
-  })
-  .catch(error => console.error('Error saving geofence:', error));
-}
-
-function sendGeofenceToClients(geofenceId, coordinates) {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    const message = {
-      type: 'geofence',
-      geofenceId: geofenceId,
-      coordinates: coordinates
-    };
-    socket.send(JSON.stringify(message));
-  } else {
-    console.error('Socket is not open or undefined.');
-  }
+  geofencePolygon.setMap(map);
 }
 
 function initWebSocket() {
