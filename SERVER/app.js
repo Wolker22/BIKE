@@ -48,6 +48,20 @@ const geofences = []; // Replace with actual geofence data
       res.status(200).json({ username: "testUser" });
     });
 
+    // Manejar solicitudes POST a /geofence
+    app.post("/geofence", async (req, res) => {
+      const { name, coordinates } = req.body;
+
+      if (!name || !coordinates) {
+        return res.status(400).json({ error: 'Name and coordinates are required' });
+      }
+
+      // Aquí deberías guardar la geofence en la base de datos
+      // ...
+
+      res.status(200).json({ message: 'Geofence saved successfully' });
+    });
+
     // Manejar conexiones WebSocket
     wss.on("connection", (ws) => {
       ws.on("message", (message) => {
