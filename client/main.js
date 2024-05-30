@@ -6,6 +6,8 @@ let intervalId;
 let directionsRenderer;
 let penaltyCount = 0;
 let socket;
+let usageStartTime;
+let usageInterval;
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
@@ -25,6 +27,7 @@ document.getElementById("start-biking-button").addEventListener("click", async (
   document.getElementById("map-container").style.display = "block";
   try {
     await startUpdatingLocation();
+    startUsageTimer();
   } catch (error) {
     showError("No se pudo obtener su ubicación.");
   }
@@ -206,4 +209,17 @@ function showError(message) {
   setTimeout(() => {
     errorElement.style.display = "none";
   }, 3000);
+}
+
+function startUsageTimer() {
+  usageStartTime = new Date();
+  usageInterval = setInterval(() => {
+    const currentTime = new Date();
+    const usageTime = Math.floor((currentTime - usageStartTime) / 1000); // en segundos
+    socket.send(JSON.stringify({ type: "usageTime", username, usageTime }));
+  }, 5000); // Envía el tiempo de uso cada 5 segundos
+}
+
+function stopUsageTimer() {
+  clearInterval(usageInterval);
 }

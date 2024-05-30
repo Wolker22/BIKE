@@ -1,3 +1,4 @@
+// MAIN.JS DEL COMPANY
 let map;
 let drawingManager;
 let geofencePolygon;
@@ -7,7 +8,7 @@ let socket;
 document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("geofence-button").addEventListener("click", defineGeofence);
   initWebSocket();
-  initMap();  // Asegúrate de que initMap sea llamada aquí también
+  initMap();
 });
 
 // Define initMap en el ámbito global
@@ -45,7 +46,7 @@ window.initMap = function() {
     }));
     geofenceCoordinates = coordinates;
     saveGeofenceToLocal(coordinates);
-    sendGeofenceToBackend("geofence1", coordinates); // Change "geofence1" as needed
+    sendGeofenceToBackend("geofence1", coordinates);
     sendGeofenceToClients("geofence1", coordinates);
   });
 
@@ -71,9 +72,8 @@ function loadGeofenceFromLocal() {
   const savedCoordinates = localStorage.getItem('geofenceCoordinates');
   if (savedCoordinates) {
     geofenceCoordinates = JSON.parse(savedCoordinates);
-    const polygonPath = geofenceCoordinates.map(coord => ({ lat: coord.lat, lng: coord.lng }));
     geofencePolygon = new google.maps.Polygon({
-      paths: polygonPath,
+      paths: geofenceCoordinates,
       editable: true,
       draggable: true
     });
@@ -81,73 +81,57 @@ function loadGeofenceFromLocal() {
   }
 }
 
-function sendGeofenceToBackend(geofenceId, coordinates) {
-  const geofenceData = {
-    geofenceId: geofenceId,
-    name: 'My Geofence', // Asegúrate de proporcionar un nombre válido
-    coordinates: coordinates
-  };
-
-  console.log('Sending geofence data to backend:', geofenceData);
-
-  fetch('https://bikely.mooo.com:3000/geofence', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(geofenceData)
+function sendGeofenceToBackend(name, coordinates) {
+  fetch("https://bikely.mooo.com:3000/geofence", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({ geofenceId: "geofence1", name, coordinates })
   })
   .then(response => {
-    if (!response.ok) {
-      return response.json().then(err => { throw new Error(err.message); });
+    if (response.ok) {
+      console.log("Geocerca enviada al backend.");
+    } else {
+      console.error("Error enviando geocerca al backend.");
     }
-    return response.json();
   })
-  .then(data => {
-    console.log('Geofence guardada:', data);
-  })
-  .catch(error => console.error('Error al guardar la geofence:', error));
+  .catch(error => {
+    console.error("Error en la solicitud:", error);
+  });
 }
 
-function sendGeofenceToClients(geofenceId, coordinates) {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    const message = {
-      type: 'geofence',
-      geofenceId: geofenceId,
-      coordinates: coordinates
-    };
-    socket.send(JSON.stringify(message));
-  } else {
-    console.error('El socket no está abierto o no está definido.');
-  }
+function sendGeofenceToClients(name, coordinates) {
+  const message = {
+    type: "geofenceUpdate",
+    geofenceId: "geofence1",
+    name,
+    coordinates
+  };
+  socket.send(JSON.stringify(message));
 }
 
 function initWebSocket() {
   socket = new WebSocket("wss://bikely.mooo.com:3000");
 
-  socket.addEventListener("open", () => {
-    console.log("Conectado al servidor WebSocket");
+  socket.addEventListener("open", event => {
+    console.log("WebSocket conectado.");
     socket.send(JSON.stringify({ type: "register", username: "company" }));
   });
 
-  socket.addEventListener("message", (event) => {
+  socket.addEventListener("message", event => {
     const message = JSON.parse(event.data);
-    if (message.type === "geofenceUpdate") {
-      console.log("Geofence actualizada:", message);
-    } else if (message.type === "userList") {
-      updateUserList(message.data);
+    if (message.type === "userLocation") {
+      handleUserLocationUpdate(message.data);
     }
   });
 
-  socket.addEventListener("close", () => {
-    console.log("Desconectado del servidor WebSocket");
+  socket.addEventListener("close", event => {
+    console.log("WebSocket desconectado.");
   });
 }
 
-function updateUserList(users) {
-  const userListContainer = document.getElementById("user-list");
-  userListContainer.innerHTML = "";
-  users.forEach(user => {
-    const userElement = document.createElement("li");
-    userElement.textContent = user.username;
-    userListContainer.appendChild(userElement);
-  });
+function handleUserLocationUpdate(userLocationData) {
+  const { username, location } = userLocationData;
+  console.log(`Usuario: ${username}, Ubicación: ${location.lat}, ${location.lng}`);
 }

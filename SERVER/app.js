@@ -1,3 +1,4 @@
+// APP.JS
 const express = require("express");
 const https = require("https");
 const fs = require("fs");
@@ -18,7 +19,7 @@ const server = https.createServer(credentials, app);
 const wss = new WebSocket.Server({ server });
 
 let clients = {};
-const userViolations = {}; // { username: { violations: 0, enterTime: null, locations: [] } }
+const userViolations = {}; // { username: { violations: 0, enterTime: null, locations: [], outsideGeofenceStart: null } }
 
 (async () => {
   try {
@@ -54,8 +55,8 @@ const userViolations = {}; // { username: { violations: 0, enterTime: null, loca
     });
 
     app.post("/geofence", (req, res) => {
-      const { geofence, username } = req.body;
-      // Aquí puedes guardar la geofence en la base de datos y enviar las actualizaciones necesarias a los clientes.
+      const { geofenceId, name, coordinates } = req.body;
+      broadcastToClients({ type: "geofenceUpdate", geofenceId, name, coordinates });
       res.sendStatus(200);
     });
 
@@ -65,18 +66,34 @@ const userViolations = {}; // { username: { violations: 0, enterTime: null, loca
 
       const penalties = users.map((user) => {
         if (!userViolations[user.username]) {
-          userViolations[user.username] = { violations: 0, enterTime: currentTime, locations: [] };
+          userViolations[user.username] = { violations: 0, enterTime: currentTime, locations: [], outsideGeofenceStart: null };
         }
-        userViolations[user.username].violations += 1;
-        userViolations[user.username].locations.push(user.location);
-        return {
-          username: user.username,
-          reason: "Dentro de una geocerca prohibida",
-          violations: userViolations[user.username].violations,
-          duration: currentTime - userViolations[user.username].enterTime,
-          locations: userViolations[user.username].locations,
-        };
-      });
+
+        const userViolation = userViolations[user.username];
+        const userInsideGeofence = isWithinGeofence(user.location, coords);
+
+        if (!userInsideGeofence) {
+          if (!userViolation.outsideGeofenceStart) {
+            userViolation.outsideGeofenceStart = currentTime;
+          } else if (currentTime - userViolation.outsideGeofenceStart >= 30000) { // 30 segundos
+            userViolation.violations += 1;
+            userViolation.outsideGeofenceStart = null; // Reset the timer
+            userViolation.locations.push(user.location);
+
+            return {
+              username: user.username,
+              reason: "Dentro de una geocerca prohibida",
+              violations: userViolation.violations,
+              duration: currentTime - userViolation.enterTime,
+              locations: userViolation.locations,
+            };
+          }
+        } else {
+          userViolation.outsideGeofenceStart = null; // Reset if user is back inside
+        }
+
+        return null;
+      }).filter(penalty => penalty !== null);
 
       penalties.forEach((penalty) => {
         if (clients[penalty.username]) {
@@ -85,6 +102,11 @@ const userViolations = {}; // { username: { violations: 0, enterTime: null, loca
       });
 
       return penalties;
+    }
+
+    function isWithinGeofence(location, geofenceCoords) {
+      // Implement your geofence check logic here
+      return true; // Placeholder implementation
     }
 
     async function getUsersWithinGeofence(coords) {
@@ -100,6 +122,10 @@ const userViolations = {}; // { username: { violations: 0, enterTime: null, loca
       console.log("Coordenadas recibidas:", location);
       console.log("Usuario:", username);
       // Aquí deberías almacenar la ubicación en la base de datos
+      broadcastToClients({
+        type: "userLocation",
+        data: { username, location, enterTime: new Date() }
+      });
       res.sendStatus(200);
     });
 
@@ -109,6 +135,10 @@ const userViolations = {}; // { username: { violations: 0, enterTime: null, loca
         if (parsedMessage.type === "register") {
           clients[parsedMessage.username] = ws;
           sendUserList();
+        } else if (parsedMessage.type === "usageTime") {
+          if (userViolations[parsedMessage.username]) {
+            userViolations[parsedMessage.username].usageTime = parsedMessage.usageTime;
+          }
         }
       });
 
@@ -126,7 +156,12 @@ const userViolations = {}; // { username: { violations: 0, enterTime: null, loca
     function sendUserList() {
       const users = Object.keys(clients).map(username => ({ username }));
       const message = JSON.stringify({ type: "userList", data: users });
-      Object.values(clients).forEach(client => client.send(message));
+      broadcastToClients(message);
+    }
+
+    function broadcastToClients(message) {
+      const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
+      Object.values(clients).forEach(client => client.send(messageStr));
     }
 
     const PORT = process.env.PORT || 3000;
