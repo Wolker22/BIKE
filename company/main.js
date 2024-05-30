@@ -244,7 +244,7 @@ function startUserUsageTimer(username) {
   }
 
   const updateUsageTime = () => {
-    if (users[username]) {
+    if (users[username] && users[username].isConnected) {
       users[username].usageTime += 1;
       socket.send(JSON.stringify({ type: "usageTimeUpdate", data: { username, usageTime: users[username].usageTime } }));
       renderUserList();
@@ -267,6 +267,8 @@ function startLocationUpdateTimer() {
 function markUsersAsDisconnected() {
   Object.keys(users).forEach(username => {
     users[username].isConnected = false;
+    clearInterval(usageTimers[username]);
+    delete usageTimers[username];
   });
   renderUserList();
 }
