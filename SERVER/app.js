@@ -24,26 +24,16 @@ let clients = {};
     console.log('MongoDB connected...');
 
     // Configuración de CORS
-    app.use(cors({
-      origin: 'https://bikely.mooo.com',
+    const corsOptions = {
+      origin: 'https://bikely.mooo.com:3000',
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
       credentials: true,
-    }));
+    };
+    app.use(cors(corsOptions));
+    app.options('*', cors(corsOptions)); // Maneja todas las solicitudes OPTIONS de manera global
 
     app.use(express.json());
-
-    // Middleware para manejar solicitudes preflight OPTIONS
-    app.use((req, res, next) => {
-      if (req.method === 'OPTIONS') {
-        res.header('Access-Control-Allow-Origin', 'https://bikely.mooo.com');
-        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        res.header('Access-Control-Allow-Credentials', 'true');
-        return res.sendStatus(200);
-      }
-      next();
-    });
 
     app.use("/client", express.static(path.join(__dirname, "../client")));
     app.use("/company", express.static(path.join(__dirname, "../company")));
