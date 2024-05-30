@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const Geofence = require('../models/Geofence');
+const Geofence = require('../models/geofence');
 
-router.post('/geofence', async (req, res) => {
+router.post('/', async (req, res) => {
   const { geofenceId, name, coordinates } = req.body;
 
-  if (!name) {
-    return res.status(400).json({ message: 'Name is required' });
+  if (!name || !coordinates) {
+    return res.status(400).json({ error: 'Name and coordinates are required' });
   }
 
   const geofence = new Geofence({ geofenceId, name, coordinates });
