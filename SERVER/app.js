@@ -25,7 +25,7 @@ let clients = {};
 
     // Configuración de CORS
     const corsOptions = {
-      origin: 'https://bikely.mooo.com:3000',
+      origin: 'https://bikely.mooo.com',
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],
       credentials: true,
