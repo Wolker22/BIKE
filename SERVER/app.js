@@ -18,8 +18,9 @@ const server = https.createServer(credentials, app);
 const wss = new WebSocket.Server({ server });
 
 let clients = {};
-const userViolations = {}; // { username: { violations: 0, enterTime: null, locations: [], outsideGeofenceStart: null } }
+const userViolations = {};
 
+// Connect to the database
 (async () => {
   try {
     await connectDB();
@@ -74,14 +75,14 @@ const userViolations = {}; // { username: { violations: 0, enterTime: null, loca
         if (!userInsideGeofence) {
           if (!userViolation.outsideGeofenceStart) {
             userViolation.outsideGeofenceStart = currentTime;
-          } else if (currentTime - userViolation.outsideGeofenceStart >= 30000) { // 30 segundos
+          } else if (currentTime - userViolation.outsideGeofenceStart >= 30000) { // 30 seconds
             userViolation.violations += 1;
             userViolation.outsideGeofenceStart = null; // Reset the timer
             userViolation.locations.push(user.location);
 
             return {
               username: user.username,
-              reason: "Dentro de una geocerca prohibida",
+              reason: "Outside geofence",
               violations: userViolation.violations,
               duration: currentTime - userViolation.enterTime,
               locations: userViolation.locations,
@@ -109,8 +110,7 @@ const userViolations = {}; // { username: { violations: 0, enterTime: null, loca
     }
 
     async function getUsersWithinGeofence(coords) {
-      // Aquí deberías consultar tu base de datos para obtener las ubicaciones de los usuarios
-      // y verificar si están dentro de las coordenadas de la geofence
+      // Query your database to get users within the geofence
       return [
         { username: "usuario1", location: { lat: 37.914954, lng: -4.716284 } },
       ];
@@ -118,9 +118,9 @@ const userViolations = {}; // { username: { violations: 0, enterTime: null, loca
 
     app.post("/company/location", async (req, res) => {
       const { location, username } = req.body;
-      console.log("Coordenadas recibidas:", location);
-      console.log("Usuario:", username);
-      // Aquí deberías almacenar la ubicación en la base de datos
+      console.log("Received coordinates:", location);
+      console.log("User:", username);
+      // Store location in the database
       broadcastToClients({
         type: "locationUpdate",
         data: { username, location, enterTime: new Date() }
