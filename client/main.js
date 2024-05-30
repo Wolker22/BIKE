@@ -178,14 +178,14 @@ async function startUpdatingLocation() {
         map: map,
       });
     } else {
-      userMarker.setPosition(userLocation); // Actualizar la posición del marcador existente
+      userMarker.setPosition(userLocation);
     }
 
     intervalId = setInterval(async () => {
       const userLocation = await getUserLocation();
       userMarker.setPosition(userLocation);
       await sendLocationToBackend(userLocation);
-    }, 30000);
+    }, 30000); // 30 segundos
   } catch (error) {
     showError("No se pudo obtener su ubicación.");
   }
@@ -196,7 +196,7 @@ async function sendLocationToBackend(location) {
     const response = await fetch("https://bikely.mooo.com:3000/company/location", { // Usar tu dominio
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ location, username }),
+      body: JSON.stringify({ location, username }), // Asegúrate de que `username` y `location` se están enviando correctamente
     });
     if (!response.ok) {
       throw new Error("Error al enviar la ubicación.");
@@ -205,6 +205,7 @@ async function sendLocationToBackend(location) {
     console.error("Error al enviar la ubicación:", error);
   }
 }
+
 
 async function getOdooUsername() {
   try {

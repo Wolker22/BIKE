@@ -197,14 +197,6 @@ function updateUserLocation(data) {
   renderUserList();
 }
 
-function updateUserUsageTime(data) {
-  const { username, usageTime } = data;
-  if (users[username]) {
-    users[username].usageTime = usageTime;
-  }
-  renderUserList();
-}
-
 function renderUserList() {
   const userListContainer = document.getElementById("user-list");
   if (!userListContainer) {
@@ -223,4 +215,12 @@ function renderUserList() {
     `;
     userListContainer.appendChild(userElement);
   });
+}
+
+function updateUserUsageTime(data) {
+  const { username, usageTime } = data;
+  if (users[username]) {
+    users[username].usageTime = usageTime;
+  }
+  renderUserList();
 }
