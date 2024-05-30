@@ -13,6 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initMap();
   initWebSocket();
   initGeofenceButton(); // Initialize the geofence button event listener
+  loadUserUsageTimesFromLocal(); // Load user usage times from localStorage
 });
 
 function initMap() {
@@ -168,13 +169,13 @@ function updateUserList(usersData) {
           title: user.username
         }),
         penalties: user.penalties || 0,
-        usageTime: user.usageTime || 0,
+        usageTime: loadUserUsageTime(user.username) || user.usageTime || 0,
         isConnected: true
       };
       startUserUsageTimer(user.username); // Start usage timer for new user
     } else {
       users[user.username].penalties = user.penalties || 0;
-      users[user.username].usageTime = user.usageTime || 0;
+      users[user.username].usageTime = loadUserUsageTime(user.username) || user.usageTime || 0;
       users[user.username].isConnected = true;
     }
   });
@@ -192,7 +193,7 @@ function updateUserLocation(data) {
         title: username
       }),
       penalties: 0,
-      usageTime: 0,
+      usageTime: loadUserUsageTime(username) || 0,
       isConnected: true
     };
     startUserUsageTimer(username); // Start usage timer for new user
@@ -275,12 +276,18 @@ function generateExcelForUser(username) {
   XLSX.utils.book_append_sheet(workbook, worksheet, 'User Data');
   
   XLSX.writeFile(workbook, `${username}_data.xlsx`);
+
+  // Reset user's usage time to 0 after generating the Excel file
+  user.usageTime = 0;
+  saveUserUsageTime(username, 0);
+  renderUserList();
 }
 
 function updateUserUsageTime(data) {
   const { username, usageTime } = data;
   if (users[username]) {
     users[username].usageTime = usageTime;
+    saveUserUsageTime(username, usageTime);
   }
   renderUserList();
 }
@@ -295,6 +302,7 @@ function startUserUsageTimer(username) {
   const updateUsageTime = () => {
     if (users[username] && users[username].isConnected) {
       users[username].usageTime += 1;
+      saveUserUsageTime(username, users[username].usageTime);
       socket.send(JSON.stringify({ type: "usageTimeUpdate", data: { username, usageTime: users[username].usageTime } }));
       renderUserList();
     }
@@ -322,4 +330,18 @@ function markUsersAsDisconnected() {
     }
   });
   renderUserList();
+}
+
+function saveUserUsageTime(username, usageTime) {
+  localStorage.setItem(`userUsageTime_${username}`, usageTime);
+}
+
+function loadUserUsageTime(username) {
+  return parseInt(localStorage.getItem(`userUsageTime_${username}`)) || 0;
+}
+
+function loadUserUsageTimesFromLocal() {
+  Object.keys(users).forEach(username => {
+    users[username].usageTime = loadUserUsageTime(username);
+  });
 }
