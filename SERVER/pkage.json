@@ -1,19 +1,15 @@
 {
-    "name": "geofence-server",
-    "version": "1.0.0",
-    "description": "",
-    "main": "app.js",
-    "scripts": {
-      "start": "node app.js"
-    },
-    "dependencies": {
-      "body-parser": "^1.19.0",
-      "cors": "^2.8.5",
-      "express": "^4.17.1",
-      "mongoose": "^5.10.9",
-      "ws": "^7.4.5"
-    },
-    "author": "",
-    "license": "ISC"
+  "name": "bikely-server",
+  "version": "1.0.0",
+  "description": "Server for Bikely project",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "mongoose": "^5.10.9",
+    "ws": "^7.3.1"
   }
-  
+}

@@ -25,21 +25,24 @@ let clients = {};
 
     app.use(cors({
       origin: 'https://bikely.mooo.com',
-      methods: ['GET', 'POST'],
+      methods: ['GET', 'POST', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
       credentials: true,
     }));
+
+    app.use(express.json());
 
     // Middleware para manejar solicitudes preflight OPTIONS
     app.use((req, res, next) => {
       if (req.method === 'OPTIONS') {
+        res.header('Access-Control-Allow-Origin', 'https://bikely.mooo.com');
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-        return res.status(200).json({});
+        return res.sendStatus(200);
       }
       next();
     });
 
-    app.use(express.json());
     app.use("/client", express.static(path.join(__dirname, "../client")));
     app.use("/company", express.static(path.join(__dirname, "../company")));
     app.use("/locations", locationsRouter);

@@ -68,7 +68,7 @@ function initMap() {
 
 function initWebSocket() {
   try {
-    socket = new WebSocket("wss://bikely.mooo.com"); // Usar tu dominio
+    socket = new WebSocket("wss://bikely.mooo.com:3000"); // Asegúrate de usar tu dominio y puerto correctos
 
     socket.addEventListener("open", () => {
       console.log("Conectado al servidor WebSocket");
