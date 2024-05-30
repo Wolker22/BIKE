@@ -69,7 +69,7 @@ function loadGeofenceFromLocal() {
   const savedCoordinates = localStorage.getItem('geofenceCoordinates');
   if (savedCoordinates) {
     geofenceCoordinates = JSON.parse(savedCoordinates);
-    const polygonPath = geofenceCoordinates.map(coord => new google.maps.LatLng(coord.lat, coord.lng));
+    const polygonPath = geofenceCoordinates.map(coord => ({ lat: coord.lat, lng: coord.lng }));
     geofencePolygon = new google.maps.Polygon({
       paths: polygonPath,
       editable: true,
@@ -78,6 +78,7 @@ function loadGeofenceFromLocal() {
     geofencePolygon.setMap(map);
   }
 }
+
 
 function sendGeofenceToBackend(geofenceId, coordinates) {
   const geofenceData = {
