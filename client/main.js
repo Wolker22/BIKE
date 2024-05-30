@@ -9,24 +9,20 @@ let socket;
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    initMap();
+    const user = await getOdooUsername();
+    if (user) username = user;
+    document.getElementById("username-display").textContent = username;
     initWebSocket();
   } catch (error) {
-    console.error("Error during initialization:", error);
-    showError("Error during initialization.");
+    console.error("Error obteniendo el nombre de usuario:", error);
+  } finally {
+    initMap();
   }
 }, { passive: true });
 
 document.getElementById("start-biking-button").addEventListener("click", async () => {
-  const usernameInput = document.getElementById("username-input").value.trim();
-  if (usernameInput) {
-    username = usernameInput;
-  }
-
   document.getElementById("initial-screen").style.display = "none";
   document.getElementById("map-container").style.display = "block";
-  document.getElementById("username-display").textContent = username;
-
   try {
     await startUpdatingLocation();
   } catch (error) {
