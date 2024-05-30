@@ -45,7 +45,7 @@ function initMap() {
     }));
     geofenceCoordinates = coordinates;
     saveGeofenceToLocal(coordinates);
-    sendGeofenceToBackend("geofence1", coordinates); // Change "geofence1" as needed
+    sendGeofenceToBackend("geofence1", coordinates);
     sendGeofenceToClients("geofence1", coordinates);
   });
 
@@ -73,7 +73,7 @@ function loadGeofenceFromLocal() {
 function sendGeofenceToBackend(geofenceId, coordinates) {
   const geofenceData = {
     geofenceId: geofenceId,
-    name: 'My Geofence', // Asegúrate de proporcionar un nombre válido
+    name: 'My Geofence',
     coordinates: coordinates
   };
 
@@ -91,9 +91,9 @@ function sendGeofenceToBackend(geofenceId, coordinates) {
     return response.json();
   })
   .then(data => {
-    console.log('Geofence guardada:', data);
+    console.log('Geofence saved:', data);
   })
-  .catch(error => console.error('Error al guardar la geofence:', error));
+  .catch(error => console.error('Error saving geofence:', error));
 }
 
 function sendGeofenceToClients(geofenceId, coordinates) {
@@ -105,7 +105,7 @@ function sendGeofenceToClients(geofenceId, coordinates) {
     };
     socket.send(JSON.stringify(message));
   } else {
-    console.error('El socket no está abierto o no está definido.');
+    console.error('Socket is not open or undefined.');
   }
 }
 
@@ -113,15 +113,14 @@ function initWebSocket() {
   socket = new WebSocket("wss://bikely.mooo.com:3000");
 
   socket.addEventListener("open", () => {
-    console.log("Conectado al servidor WebSocket");
+    console.log("Connected to WebSocket server");
     socket.send(JSON.stringify({ type: "register", username: "company" }));
   });
 
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
     if (message.type === "geofenceUpdate") {
-      console.log("Geofence actualizada:", message);
-      // Aquí podrías manejar actualizaciones de la geocerca si es necesario
+      console.log("Geofence updated:", message);
     } else if (message.type === "userList") {
       updateUserList(message.data);
     } else if (message.type === "locationUpdate") {
@@ -132,7 +131,22 @@ function initWebSocket() {
   });
 
   socket.addEventListener("close", () => {
-    console.log("Desconectado del servidor WebSocket");
+    console.log("Disconnected from WebSocket server");
+  });
+}
+
+function updateUserList(users) {
+  const userListContainer = document.getElementById("user-list");
+  userListContainer.innerHTML = "";
+  users.forEach(user => {
+    const userElement = document.createElement("li");
+    userElement.innerHTML = `
+      <strong>Username:</strong> ${user.username}<br>
+      <strong>Penalties:</strong> ${user.penalties}<br>
+      <strong>Usage Time:</strong> ${user.usageTime} seconds<br>
+      <strong>Location:</strong> Latitude: ${user.location.lat}, Longitude: ${user.location.lng}
+    `;
+    userListContainer.appendChild(userElement);
   });
 }
 
@@ -155,7 +169,7 @@ function updateUserLocation(data) {
     } else {
       const timeOutside = (Date.now() - penalties[username].startTime) / 1000;
       if (timeOutside > 30) {
-        socket.send(JSON.stringify({ type: "penalty", data: { username, reason: "Fuera de la geocerca" } }));
+        socket.send(JSON.stringify({ type: "penalty", data: { username, reason: "Outside geofence" } }));
         penalties[username].startTime = Date.now();
       }
     }
@@ -166,15 +180,5 @@ function updateUserLocation(data) {
 
 function updateUserUsageTime(data) {
   const { username, usageTime } = data;
-  document.getElementById(`usage-time-${username}`).textContent = `Tiempo de uso: ${usageTime} segundos`;
-}
-
-function updateUserList(users) {
-  const userListContainer = document.getElementById("user-list");
-  userListContainer.innerHTML = "";
-  users.forEach(user => {
-    const userElement = document.createElement("li");
-    userElement.textContent = user.username;
-    userListContainer.appendChild(userElement);
-  });
+  document.getElementById(`usage-time-${username}`).textContent = `Usage Time: ${usageTime} seconds`;
 }
