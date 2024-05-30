@@ -201,7 +201,8 @@ function updateUserLocation(data) {
       const timeOutside = (Date.now() - penalties[username].startTime) / 1000;
       if (timeOutside > 30) {
         socket.send(JSON.stringify({ type: "penalty", data: { username, reason: "Outside geofence" } }));
-        penalties[username].startTime = Date.now();
+        penalties[username].count += 1; // Increase the penalty count
+        penalties[username].startTime = Date.now(); // Reset the start time
       }
     }
   } else {
