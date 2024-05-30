@@ -46,7 +46,7 @@ function initMap() {
     geofenceCoordinates = coordinates;
     saveGeofenceToLocal(coordinates);
     sendGeofenceToBackend("geofence1", coordinates);
-    attemptSendGeofenceToClients("geofence1", coordinates);
+    sendGeofenceToClients("geofence1", coordinates);
   });
 
   loadGeofenceFromLocal();
@@ -96,22 +96,17 @@ function sendGeofenceToBackend(geofenceId, coordinates) {
   .catch(error => console.error('Error saving geofence:', error));
 }
 
-function attemptSendGeofenceToClients(geofenceId, coordinates) {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    sendGeofenceToClients(geofenceId, coordinates);
-  } else {
-    console.error('Socket is not open or undefined. Retrying in 1 second...');
-    setTimeout(() => attemptSendGeofenceToClients(geofenceId, coordinates), 1000);
-  }
-}
-
 function sendGeofenceToClients(geofenceId, coordinates) {
-  const message = {
-    type: 'geofence',
-    geofenceId: geofenceId,
-    coordinates: coordinates
-  };
-  socket.send(JSON.stringify(message));
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    const message = {
+      type: 'geofence',
+      geofenceId: geofenceId,
+      coordinates: coordinates
+    };
+    socket.send(JSON.stringify(message));
+  } else {
+    console.error('Socket is not open or undefined.');
+  }
 }
 
 function initWebSocket() {
@@ -138,13 +133,13 @@ function initWebSocket() {
 
   socket.addEventListener("close", () => {
     console.log("Disconnected from WebSocket server");
-    setTimeout(initWebSocket, 5000); // Reconnect after 5 seconds
   });
 
   socket.addEventListener("error", (error) => {
     console.error("WebSocket error:", error);
   });
 }
+
 
 function updateUserList(usersData) {
   console.log("Updating user list:", usersData); // Añadir log para depurar
@@ -166,6 +161,7 @@ function updateUserList(usersData) {
   });
   renderUserList();
 }
+
 
 function updateUserLocation(data) {
   const { username, location } = data;
@@ -201,14 +197,6 @@ function updateUserLocation(data) {
   renderUserList();
 }
 
-function updateUserUsageTime(data) {
-  const { username, usageTime } = data;
-  if (users[username]) {
-    users[username].usageTime = usageTime;
-  }
-  renderUserList();
-}
-
 function renderUserList() {
   const userListContainer = document.getElementById("user-list");
   if (!userListContainer) {
@@ -227,4 +215,12 @@ function renderUserList() {
     `;
     userListContainer.appendChild(userElement);
   });
+}
+
+function updateUserUsageTime(data) {
+  const { username, usageTime } = data;
+  if (users[username]) {
+    users[username].usageTime = usageTime;
+  }
+  renderUserList();
 }
