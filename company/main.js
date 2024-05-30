@@ -133,6 +133,10 @@ function initWebSocket() {
   socket.addEventListener("close", () => {
     console.log("Disconnected from WebSocket server");
   });
+
+  socket.addEventListener("error", (error) => {
+    console.error("WebSocket error:", error);
+  });
 }
 
 function updateUserList(usersData) {
@@ -147,6 +151,9 @@ function updateUserList(usersData) {
         penalties: user.penalties || 0,
         usageTime: user.usageTime || 0
       };
+    } else {
+      users[user.username].penalties = user.penalties || 0;
+      users[user.username].usageTime = user.usageTime || 0;
     }
   });
   renderUserList();
@@ -182,6 +189,8 @@ function updateUserLocation(data) {
   } else {
     delete penalties[username];
   }
+
+  renderUserList();
 }
 
 function updateUserUsageTime(data) {
