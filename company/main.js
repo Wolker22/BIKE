@@ -27,7 +27,10 @@ function initMap() {
     drawingControl: false, // Disable default drawing controls
     polygonOptions: {
       editable: true,
-      draggable: true
+      draggable: true,
+      strokeColor: '#FF0000', // Red color for the geofence border
+      fillColor: '#FF0000', // Red color for the geofence area
+      fillOpacity: 0.2, // Transparency of the geofence area
     }
   });
 
@@ -70,7 +73,10 @@ function loadGeofenceFromLocal() {
     geofencePolygon = new google.maps.Polygon({
       paths: polygonPath,
       editable: true,
-      draggable: true
+      draggable: true,
+      strokeColor: '#FF0000', // Red color for the geofence border
+      fillColor: '#FF0000', // Red color for the geofence area
+      fillOpacity: 0.2, // Transparency of the geofence area
     });
     geofencePolygon.setMap(map);
   }
@@ -209,6 +215,7 @@ function updateUserLocation(data) {
     delete penalties[username];
   }
 
+  users[username].penalties = penalties[username]?.count || 0; // Update penalties count
   renderUserList();
 }
 
