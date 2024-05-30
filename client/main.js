@@ -6,8 +6,6 @@ let intervalId;
 let directionsRenderer;
 let penaltyCount = 0;
 let socket;
-let usageStartTime;
-let usageInterval;
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
@@ -27,7 +25,6 @@ document.getElementById("start-biking-button").addEventListener("click", async (
   document.getElementById("map-container").style.display = "block";
   try {
     await startUpdatingLocation();
-    startUsageTimer();
   } catch (error) {
     showError("No se pudo obtener su ubicación.");
   }
@@ -82,6 +79,10 @@ function initWebSocket() {
       const message = JSON.parse(event.data);
       if (message.type === "penalty") {
         showPenaltyNotification(message.data);
+      } else if (message.type === "geofence") {
+        drawGeofence(message.data);
+      } else if (message.type === "usageTimeUpdate") {
+        updateUsageTime(message.data);
       }
     });
 
@@ -97,6 +98,23 @@ function showPenaltyNotification(penalty) {
   penaltyCount++;
   document.getElementById("penalty-count-value").textContent = penaltyCount;
   showError(`Has recibido una multa: ${penalty.reason}`);
+}
+
+function drawGeofence(geofence) {
+  const geofenceCoords = geofence.coordinates.map(coord => ({ lat: coord.lat, lng: coord.lng }));
+  new google.maps.Polygon({
+    paths: geofenceCoords,
+    strokeColor: "#FF0000",
+    strokeOpacity: 0.8,
+    strokeWeight: 2,
+    fillColor: "#FF0000",
+    fillOpacity: 0.35,
+    map: map,
+  });
+}
+
+function updateUsageTime(data) {
+  document.getElementById("usage-time").textContent = `Tiempo de uso: ${data.usageTime} segundos`;
 }
 
 async function traceRouteToPlace(destination, name, photoUrl) {
@@ -209,17 +227,4 @@ function showError(message) {
   setTimeout(() => {
     errorElement.style.display = "none";
   }, 3000);
-}
-
-function startUsageTimer() {
-  usageStartTime = new Date();
-  usageInterval = setInterval(() => {
-    const currentTime = new Date();
-    const usageTime = Math.floor((currentTime - usageStartTime) / 1000); // en segundos
-    socket.send(JSON.stringify({ type: "usageTime", username, usageTime }));
-  }, 5000); // Envía el tiempo de uso cada 5 segundos
-}
-
-function stopUsageTimer() {
-  clearInterval(usageInterval);
 }

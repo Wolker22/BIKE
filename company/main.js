@@ -1,137 +1,95 @@
-// MAIN.JS DEL COMPANY
 let map;
-let drawingManager;
-let geofencePolygon;
-let geofenceCoordinates = null;
 let socket;
+let users = {};
+let geofence;
+let penalties = {};
 
 document.addEventListener("DOMContentLoaded", () => {
-  document.getElementById("geofence-button").addEventListener("click", defineGeofence);
-  initWebSocket();
   initMap();
-});
+  initWebSocket();
+}, { passive: true });
 
-// Define initMap en el ámbito global
-window.initMap = function() {
-  const coords = { lat: 37.914954, lng: -4.716284 };
+function initMap() {
+  const coords = { lat: 37.91495442422956, lng: -4.716284234252457 };
 
   map = new google.maps.Map(document.getElementById("map"), {
     zoom: 12,
     center: coords,
   });
-
-  drawingManager = new google.maps.drawing.DrawingManager({
-    drawingMode: google.maps.drawing.OverlayType.POLYGON,
-    drawingControl: true,
-    drawingControlOptions: {
-      position: google.maps.ControlPosition.TOP_CENTER,
-      drawingModes: ['polygon']
-    },
-    polygonOptions: {
-      editable: true,
-      draggable: true
-    }
-  });
-
-  drawingManager.setMap(map);
-
-  google.maps.event.addListener(drawingManager, 'overlaycomplete', event => {
-    if (geofencePolygon) {
-      geofencePolygon.setMap(null);
-    }
-    geofencePolygon = event.overlay;
-    const coordinates = geofencePolygon.getPath().getArray().map(latlng => ({
-      lat: latlng.lat(),
-      lng: latlng.lng()
-    }));
-    geofenceCoordinates = coordinates;
-    saveGeofenceToLocal(coordinates);
-    sendGeofenceToBackend("geofence1", coordinates);
-    sendGeofenceToClients("geofence1", coordinates);
-  });
-
-  loadGeofenceFromLocal();
-}
-
-function defineGeofence() {
-  if (geofencePolygon) {
-    geofencePolygon.setMap(null);
-  }
-  if (drawingManager) {
-    drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
-  } else {
-    console.error("drawingManager no está definido");
-  }
-}
-
-function saveGeofenceToLocal(coordinates) {
-  localStorage.setItem('geofenceCoordinates', JSON.stringify(coordinates));
-}
-
-function loadGeofenceFromLocal() {
-  const savedCoordinates = localStorage.getItem('geofenceCoordinates');
-  if (savedCoordinates) {
-    geofenceCoordinates = JSON.parse(savedCoordinates);
-    geofencePolygon = new google.maps.Polygon({
-      paths: geofenceCoordinates,
-      editable: true,
-      draggable: true
-    });
-    geofencePolygon.setMap(map);
-  }
-}
-
-function sendGeofenceToBackend(name, coordinates) {
-  fetch("https://bikely.mooo.com:3000/geofence", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ geofenceId: "geofence1", name, coordinates })
-  })
-  .then(response => {
-    if (response.ok) {
-      console.log("Geocerca enviada al backend.");
-    } else {
-      console.error("Error enviando geocerca al backend.");
-    }
-  })
-  .catch(error => {
-    console.error("Error en la solicitud:", error);
-  });
-}
-
-function sendGeofenceToClients(name, coordinates) {
-  const message = {
-    type: "geofenceUpdate",
-    geofenceId: "geofence1",
-    name,
-    coordinates
-  };
-  socket.send(JSON.stringify(message));
 }
 
 function initWebSocket() {
-  socket = new WebSocket("wss://bikely.mooo.com:3000");
+  try {
+    socket = new WebSocket("wss://bikely.mooo.com:3000"); // Asegúrate de usar tu dominio y puerto correctos
 
-  socket.addEventListener("open", event => {
-    console.log("WebSocket conectado.");
-    socket.send(JSON.stringify({ type: "register", username: "company" }));
-  });
+    socket.addEventListener("open", () => {
+      console.log("Conectado al servidor WebSocket");
+    });
 
-  socket.addEventListener("message", event => {
-    const message = JSON.parse(event.data);
-    if (message.type === "userLocation") {
-      handleUserLocationUpdate(message.data);
-    }
-  });
+    socket.addEventListener("message", (event) => {
+      const message = JSON.parse(event.data);
+      if (message.type === "locationUpdate") {
+        updateUserLocation(message.data);
+      } else if (message.type === "usageTime") {
+        updateUserUsageTime(message.data);
+      }
+    });
 
-  socket.addEventListener("close", event => {
-    console.log("WebSocket desconectado.");
-  });
+    socket.addEventListener("close", () => {
+      console.log("Desconectado del servidor WebSocket");
+    });
+  } catch (error) {
+    console.error("Error conectando al WebSocket:", error);
+  }
 }
 
-function handleUserLocationUpdate(userLocationData) {
-  const { username, location } = userLocationData;
-  console.log(`Usuario: ${username}, Ubicación: ${location.lat}, ${location.lng}`);
+function updateUserLocation(data) {
+  const { username, location } = data;
+
+  if (!users[username]) {
+    users[username] = new google.maps.Marker({
+      position: location,
+      map: map,
+      title: username,
+    });
+  } else {
+    users[username].setPosition(location);
+  }
+
+  if (geofence && !google.maps.geometry.poly.containsLocation(new google.maps.LatLng(location), geofence)) {
+    if (!penalties[username]) {
+      penalties[username] = { count: 0, startTime: Date.now() };
+    } else {
+      const timeOutside = (Date.now() - penalties[username].startTime) / 1000;
+      if (timeOutside > 30) {
+        socket.send(JSON.stringify({ type: "penalty", data: { username, reason: "Fuera de la geocerca" } }));
+        penalties[username].startTime = Date.now();
+      }
+    }
+  } else {
+    delete penalties[username];
+  }
+}
+
+function updateUserUsageTime(data) {
+  const { username, usageTime } = data;
+  document.getElementById(`usage-time-${username}`).textContent = `Tiempo de uso: ${usageTime} segundos`;
+}
+
+function setGeofence(coordinates) {
+  if (geofence) {
+    geofence.setMap(null);
+  }
+
+  geofence = new google.maps.Polygon({
+    paths: coordinates,
+    strokeColor: "#FF0000",
+    strokeOpacity: 0.8,
+    strokeWeight: 2,
+    fillColor: "#FF0000",
+    fillOpacity: 0.35,
+    map: map,
+  });
+
+  socket.send(JSON.stringify({ type: "geofence", data: { coordinates } }));
 }

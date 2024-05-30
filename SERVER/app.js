@@ -1,4 +1,3 @@
-// APP.JS
 const express = require("express");
 const https = require("https");
 const fs = require("fs");
@@ -56,7 +55,7 @@ const userViolations = {}; // { username: { violations: 0, enterTime: null, loca
 
     app.post("/geofence", (req, res) => {
       const { geofenceId, name, coordinates } = req.body;
-      broadcastToClients({ type: "geofenceUpdate", geofenceId, name, coordinates });
+      broadcastToClients({ type: "geofence", data: { geofenceId, name, coordinates } });
       res.sendStatus(200);
     });
 
@@ -123,7 +122,7 @@ const userViolations = {}; // { username: { violations: 0, enterTime: null, loca
       console.log("Usuario:", username);
       // Aquí deberías almacenar la ubicación en la base de datos
       broadcastToClients({
-        type: "userLocation",
+        type: "locationUpdate",
         data: { username, location, enterTime: new Date() }
       });
       res.sendStatus(200);
@@ -138,6 +137,10 @@ const userViolations = {}; // { username: { violations: 0, enterTime: null, loca
         } else if (parsedMessage.type === "usageTime") {
           if (userViolations[parsedMessage.username]) {
             userViolations[parsedMessage.username].usageTime = parsedMessage.usageTime;
+            broadcastToClients({
+              type: "usageTimeUpdate",
+              data: { username: parsedMessage.username, usageTime: parsedMessage.usageTime }
+            });
           }
         }
       });
