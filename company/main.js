@@ -82,6 +82,7 @@ function loadGeofenceFromLocal() {
 function sendGeofenceToBackend(geofenceId, coordinates) {
   const geofenceData = {
     geofenceId: geofenceId,
+    name: 'My Geofence', // Asegúrate de proporcionar un nombre válido
     coordinates: coordinates
   };
 
@@ -103,6 +104,7 @@ function sendGeofenceToBackend(geofenceId, coordinates) {
   })
   .catch(error => console.error('Error al guardar la geofence:', error));
 }
+
 
 function sendGeofenceToClients(geofenceId, coordinates) {
   if (socket && socket.readyState === WebSocket.OPEN) {
