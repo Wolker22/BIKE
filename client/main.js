@@ -9,7 +9,6 @@ let socket;
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    const user = await getOdooUsername();
     if (user) username = user;
     document.getElementById("username-display").textContent = username;
     initWebSocket();
@@ -21,14 +20,21 @@ document.addEventListener("DOMContentLoaded", async () => {
 }, { passive: true });
 
 document.getElementById("start-biking-button").addEventListener("click", async () => {
-  document.getElementById("initial-screen").style.display = "none";
-  document.getElementById("map-container").style.display = "block";
-  try {
-    await startUpdatingLocation();
-  } catch (error) {
-    showError("No se pudo obtener su ubicación.");
+  const userInput = document.getElementById("username-input").value.trim(); // Obtener el valor del input y eliminar espacios en blanco al inicio y al final
+  if (userInput !== "") { // Verificar que el input no esté vacío
+    username = userInput; // Asignar el valor del input a la variable username
+    document.getElementById("initial-screen").style.display = "none";
+    document.getElementById("map-container").style.display = "block";
+    try {
+      await startUpdatingLocation();
+    } catch (error) {
+      showError("No se pudo obtener su ubicación.");
+    }
+  } else {
+    showError("Por favor, introduce un nombre de usuario válido."); // Mostrar un mensaje de error si el input está vacío
   }
 });
+
 
 function initMap() {
   const coords = { lat: 37.888175, lng: -4.779383 };
@@ -222,20 +228,6 @@ async function sendLocationToBackend(location) {
     console.log("Ubicación enviada al backend exitosamente");
   } catch (error) {
     console.error("Error al enviar la ubicación:", error);
-  }
-}
-
-async function getOdooUsername() {
-  try {
-    const response = await fetch("https://bikely.mooo.com/odoo/username"); // Usar tu dominio
-    if (!response.ok) {
-      throw new Error("Error al obtener el nombre de usuario.");
-    }
-    const data = await response.json();
-    return data.username;
-  } catch (error) {
-    console.error("Error obteniendo el nombre de usuario:", error);
-    return null;
   }
 }
 
