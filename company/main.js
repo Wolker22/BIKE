@@ -11,6 +11,7 @@ let usageTimers = {};
 document.addEventListener("DOMContentLoaded", () => {
   initMap();
   initWebSocket();
+  initGeofenceButton(); // Initialize the geofence button event listener
 });
 
 function initMap() {
@@ -23,11 +24,7 @@ function initMap() {
 
   drawingManager = new google.maps.drawing.DrawingManager({
     drawingMode: google.maps.drawing.OverlayType.POLYGON,
-    drawingControl: true,
-    drawingControlOptions: {
-      position: google.maps.ControlPosition.TOP_CENTER,
-      drawingModes: ['polygon']
-    },
+    drawingControl: false, // Disable default drawing controls
     polygonOptions: {
       editable: true,
       draggable: true
@@ -52,6 +49,13 @@ function initMap() {
   });
 
   loadGeofenceFromLocal();
+}
+
+function initGeofenceButton() {
+  const geofenceButton = document.getElementById("geofence-button");
+  geofenceButton.addEventListener("click", () => {
+    drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON);
+  });
 }
 
 function saveGeofenceToLocal(coordinates) {
