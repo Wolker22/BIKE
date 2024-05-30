@@ -138,6 +138,7 @@ function initWebSocket() {
 
   socket.addEventListener("close", () => {
     console.log("Disconnected from WebSocket server");
+    markUsersAsDisconnected();
   });
 
   socket.addEventListener("error", (error) => {
@@ -156,12 +157,14 @@ function updateUserList(usersData) {
           title: user.username
         }),
         penalties: user.penalties || 0,
-        usageTime: user.usageTime || 0
+        usageTime: user.usageTime || 0,
+        isConnected: true
       };
       startUserUsageTimer(user.username); // Start usage timer for new user
     } else {
       users[user.username].penalties = user.penalties || 0;
       users[user.username].usageTime = user.usageTime || 0;
+      users[user.username].isConnected = true;
     }
   });
   renderUserList();
@@ -178,11 +181,13 @@ function updateUserLocation(data) {
         title: username
       }),
       penalties: 0,
-      usageTime: 0
+      usageTime: 0,
+      isConnected: true
     };
     startUserUsageTimer(username); // Start usage timer for new user
   } else {
     users[username].marker.setPosition(location);
+    users[username].isConnected = true;
   }
 
   if (geofencePolygon && !google.maps.geometry.poly.containsLocation(new google.maps.LatLng(location), geofencePolygon)) {
@@ -216,7 +221,8 @@ function renderUserList() {
       <strong>Username:</strong> ${username}<br>
       <strong>Penalties:</strong> ${user.penalties}<br>
       <strong>Usage Time:</strong> ${user.usageTime} seconds<br>
-      <strong>Location:</strong> Latitude: ${user.marker.getPosition().lat()}, Longitude: ${user.marker.getPosition().lng()}
+      <strong>Location:</strong> Latitude: ${user.marker.getPosition().lat()}, Longitude: ${user.marker.getPosition().lng()}<br>
+      <strong>Status:</strong> ${user.isConnected ? 'Connected' : 'Disconnected'}
     `;
     userListContainer.appendChild(userElement);
   });
@@ -256,4 +262,11 @@ function startLocationUpdateTimer() {
       console.error("Socket is not open or undefined.");
     }
   }, locationUpdateInterval);
+}
+
+function markUsersAsDisconnected() {
+  Object.keys(users).forEach(username => {
+    users[username].isConnected = false;
+  });
+  renderUserList();
 }
