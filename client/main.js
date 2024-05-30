@@ -164,7 +164,7 @@ async function startUpdatingLocation() {
       const userLocation = await getUserLocation();
       userMarker.setPosition(userLocation);
       await sendLocationToBackend(userLocation);
-    }, 5000);
+    }, 30000);
   } catch (error) {
     showError("No se pudo obtener su ubicación.");
   }
