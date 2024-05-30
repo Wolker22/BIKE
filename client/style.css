@@ -1,29 +1,111 @@
+/* Resetting default styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* General styles */
 body {
   font-family: Arial, sans-serif;
+  background-color: #f8f9fa;
 }
 
-#initial-screen {
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Initial screen styles */
+.initial-screen {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #343a40;
+}
+
+.start-button {
+  padding: 15px 30px;
+  font-size: 18px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.start-button:hover {
+  background-color: #218838;
+}
+
+/* Map container styles */
+.map-container {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-}
-
-#map-container {
-  display: none;
-  height: 100vh;
+  justify-content: flex-start;
+  align-items: flex-start;
+  background-color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+  height: 650px;
+  overflow: hidden;
 }
 
 #map {
-  height: 80%;
+  width: 100%;
+  height: 100%;
+  border-radius: 10px 10px 0 0; /* Rounded top corners */
 }
 
-#error-message {
-  color: red;
-  margin-top: 10px;
+.bg-gray {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f8f9fa;
+  padding: 15px;
+  width: 100%;
 }
 
-#penalty-count, #usage-time {
-  margin-top: 10px;
+.input {
+  padding: 10px;
+  font-size: 16px;
+  margin-left: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 5px;
+  flex: 1;
+}
+
+#logout-button {
+  padding: 15px 30px;
+  font-size: 18px;
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-right: 10px;
+}
+
+#logout-button:hover {
+  background-color: #c82333;
+}
+
+/* Notification styles */
+.notification {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  background-color: #343a40;
+  color: white;
+  border-radius: 5px;
+  opacity: 0.9;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
