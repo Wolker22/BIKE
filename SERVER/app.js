@@ -94,6 +94,17 @@ const userViolations = {};
       }
     });
 
+    // Define the /company/location route
+    app.post("/company/location", (req, res) => {
+      const { location, username } = req.body;
+      console.log("Received location data:", location, "from user:", username);
+      
+      // Perform any necessary operations with the location data here
+      // For example, you could save it to the database or perform some validation
+
+      res.status(200).json({ success: true, message: "Location received" });
+    });
+
     // WebSocket handlers
     wss.on('connection', (ws, req) => {
       ws.on('message', (message) => {

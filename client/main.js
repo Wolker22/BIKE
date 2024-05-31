@@ -150,6 +150,7 @@ async function validateUsername(username) {
   }
 }
 
+// Validate User
 async function validateUser(username, password) {
   try {
     const response = await fetch("https://bikely.mooo.com:3000/validate-user", {
