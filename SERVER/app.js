@@ -43,7 +43,7 @@ const userViolations = {};
     app.use("/geofence", geofenceRouter);
 
     const odooConfig = {
-      url: 'https://bikely.csproject.org',
+      url: 'https://bikely.csproject.org/jsonrpc',
       db: 'CSProject',
       uid: 'i12sagud@uco.es',
       password: 'trabajosif123',
@@ -53,35 +53,54 @@ const userViolations = {};
       const { username, password } = req.body;
       console.log("Received username:", username); // Log received username
 
+      const payload = {
+        jsonrpc: "2.0",
+        method: "call",
+        params: {
+          service: "object",
+          method: "execute_kw",
+          args: [
+            odooConfig.db,
+            odooConfig.uid,
+            odooConfig.password,
+            "res.users",
+            "search_read",
+            [["login", "=", username]],
+            ["id", "login", "password"]
+          ]
+        },
+        id: new Date().getTime()
+      };
+
+      console.log("Odoo request payload:", payload); // Log the request payload
+
       try {
-        const response = await axios.post(odooConfig.url, {
-          jsonrpc: "2.0",
-          method: "call",
-          params: {
-            service: "object",
-            method: "execute_kw",
-            args: [
-              odooConfig.db,
-              odooConfig.uid,
-              odooConfig.password,
-              "res.users",
-              "search_read",
-              [["login", "=", username]],
-              ["id", "login", "password"]
-            ]
-          },
-          id: new Date().getTime()
-        });
+        const response = await axios.post(odooConfig.url, payload);
 
         console.log("Odoo response:", response.data); // Log Odoo response
 
-        if (response.data.result.length > 0 && response.data.result[0].password === password) {
+        const users = response.data.result;
+
+        if (users.length > 0 && users[0].password === password) {
           res.status(200).json({ valid: true });
         } else {
           res.status(401).json({ valid: false }); // Use 401 for unauthorized
         }
       } catch (error) {
         console.error("Error connecting to Odoo:", error);
+        if (error.response) {
+          // The request was made and the server responded with a status code
+          // that falls out of the range of 2xx
+          console.error("Error response data:", error.response.data);
+          console.error("Error response status:", error.response.status);
+          console.error("Error response headers:", error.response.headers);
+        } else if (error.request) {
+          // The request was made but no response was received
+          console.error("Error request:", error.request);
+        } else {
+          // Something happened in setting up the request that triggered an Error
+          console.error("Error message:", error.message);
+        }
         res.status(500).json({ valid: false, error: "Internal Server Error", details: error.message });
       }
     });
