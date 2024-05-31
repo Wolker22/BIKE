@@ -53,20 +53,8 @@ function initMap() {
     uploadGeofence(coordinates);
   });
 
-  // Default geofence coordinates covering Córdoba, Spain
-  geofenceCoordinates = [
-    { lat: 37.9514, lng: -4.8734 },
-    { lat: 37.9514, lng: -4.6756 },
-    { lat: 37.8254, lng: -4.6756 },
-    { lat: 37.8254, lng: -4.8734 },
-  ];
-
-  geofencePolygon = new google.maps.Polygon({
-    paths: geofenceCoordinates,
-    strokeColor: '#FF0000',
-    fillOpacity: 0.2,
-  });
-  geofencePolygon.setMap(map);
+  // Prompt user to draw the geofence
+  alert("Please draw the geofence using the polygon drawing tool.");
 }
 
 function initWebSocket() {
