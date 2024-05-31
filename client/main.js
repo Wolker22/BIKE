@@ -8,6 +8,7 @@ let directionsRenderer;
 let penaltyCount = 0;
 let socket;
 let initialLocationSet = false;
+let geofencePolygon;
 
 // Event Listeners
 document.addEventListener("DOMContentLoaded", initPage);
@@ -177,10 +178,13 @@ async function startUpdatingLocation() {
       try {
         const position = await getCurrentPosition();
         const location = { lat: position.coords.latitude, lng: position.coords.longitude };
-        updateUserLocationOnMap(location, true); // Pass false to prevent centering map
+        updateUserLocationOnMap(location, true); // Pass true to prevent centering map
         await sendLocationToBackend(location);
       } catch (error) {
         console.error("Error obteniendo la ubicación actual:", error);
+        if (!initialLocationSet) {
+          showError("No se pudo obtener su ubicación.");
+        }
       }
     }, 5000); // Update every 5 seconds
   } else {
@@ -242,7 +246,7 @@ function showError(message) {
 }
 
 // Draw Geofence
-function drawGeofence() {
+function drawGeofence(data) {
   const geofenceCoordinates = [
     { lat: 37.88562, lng: -4.77867 },
     { lat: 37.88572, lng: -4.77848 },
@@ -250,7 +254,11 @@ function drawGeofence() {
     { lat: 37.88569, lng: -4.77881 }
   ];
 
-  const geofencePolygon = new google.maps.Polygon({
+  if (geofencePolygon) {
+    geofencePolygon.setMap(null);
+  }
+
+  geofencePolygon = new google.maps.Polygon({
     paths: geofenceCoordinates,
     strokeColor: "#FF0000",
     strokeOpacity: 0.8,

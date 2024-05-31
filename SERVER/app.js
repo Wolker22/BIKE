@@ -1,306 +1,157 @@
-// Global Variables
-let map;
-let autocomplete;
-let userMarker;
-let username = "NO USUARIO";
-let intervalId;
-let directionsRenderer;
-let penaltyCount = 0;
-let socket;
-let initialLocationSet = false;
-let geofencePolygon;
+const express = require("express");
+const https = require("https");
+const fs = require("fs");
+const cors = require("cors");
+const WebSocket = require("ws");
+const path = require("path");
+const axios = require("axios");
+const locationsRouter = require("./routes/locations");
+const geofenceRouter = require("./routes/geofence");
+const connectDB = require('./config/db');
 
-// Event Listeners
-document.addEventListener("DOMContentLoaded", initPage);
-document.getElementById("start-biking-button").addEventListener("click", handleStartBiking);
+// Leer certificados SSL
+const privateKey = fs.readFileSync('/etc/letsencrypt/live/bikely.mooo.com/privkey.pem', 'utf8');
+const certificate = fs.readFileSync('/etc/letsencrypt/live/bikely.mooo.com/fullchain.pem', 'utf8');
+const credentials = { key: privateKey, cert: certificate };
 
-// Page Initialization
-async function initPage() {
+const app = express();
+const server = https.createServer(credentials, app);
+const wss = new WebSocket.Server({ server });
+
+let clients = {};
+const userViolations = {};
+
+// Conectar a la base de datos
+(async () => {
   try {
-    const userInput = document.getElementById("username-input").value.trim();
-    if (userInput) {
-      const validUser = await validateUsername(userInput);
-      if (validUser) {
-        username = userInput;
-        document.getElementById("username-display").textContent = username;
-        initWebSocket();
-      } else {
-        showError("Nombre de usuario no válido. Por favor, intente nuevamente.");
-      }
-    }
-  } catch (error) {
-    console.error("Error obteniendo el nombre de usuario:", error);
-  } finally {
-    initMap();
-  }
-}
+    await connectDB();
+    console.log('MongoDB connected...');
 
-// Map Initialization
-function initMap() {
-  const coords = { lat: 37.888175, lng: -4.779383 };
+    const corsOptions = {
+      origin: 'https://bikely.mooo.com',
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      credentials: true,
+    };
+    app.use(cors(corsOptions));
+    app.options('*', cors(corsOptions));
 
-  map = new google.maps.Map(document.getElementById("map"), {
-    zoom: 12,
-    center: coords,
-  });
+    app.use(express.json());
+    app.use("/client", express.static(path.join(__dirname, "../client")));
+    app.use("/company", express.static(path.join(__dirname, "../company")));
+    app.use("/locations", locationsRouter);
+    app.use("/geofence", geofenceRouter);
 
-  autocomplete = new google.maps.places.Autocomplete(document.getElementById("place-input"), { types: ["geocode"] });
-  autocomplete.bindTo("bounds", map);
+    const odooConfig = {
+      url: 'https://bikely.csproject.org/jsonrpc',
+      db: 'odoo16',
+      username: 'i12sagud@uco.es', // Usuario de Odoo
+      password: 'trabajosif123',   // Contraseña de Odoo
+    };
 
-  autocomplete.addListener("place_changed", handlePlaceChanged);
+    app.post("/validate-user", async (req, res) => {
+      const { username, password } = req.body;
+      console.log("Received username:", username); // Log received username
 
-  directionsRenderer = new google.maps.DirectionsRenderer();
-  directionsRenderer.setMap(map);
+      const payload = {
+        jsonrpc: "2.0",
+        method: "call",
+        params: {
+          service: "common",
+          method: "login",
+          args: [odooConfig.db, username, password]
+        },
+        id: new Date().getTime()
+      };
 
-  drawGeofence();
-}
+      console.log("Odoo request payload:", payload); // Log the request payload
 
-// Handle Place Changed
-async function handlePlaceChanged() {
-  const place = autocomplete.getPlace();
-  if (!place.geometry || !place.geometry.location) {
-    showError("No se encontró información de este lugar.");
-    return;
-  }
-
-  try {
-    const position = await getCurrentPosition();
-    const userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
-    map.setCenter(userLocation);
-    map.setZoom(19);
-    traceRouteToPlace(place.geometry.location, place.name, place.photos?.[0]?.getUrl());
-  } catch (error) {
-    showError("No se pudo obtener su ubicación.");
-  }
-}
-
-// WebSocket Initialization
-function initWebSocket() {
-  try {
-    socket = new WebSocket("wss://bikely.mooo.com:3000");
-
-    socket.addEventListener("open", () => {
-      console.log("Conectado al servidor WebSocket");
-      socket.send(JSON.stringify({ type: "register", username }));
-    });
-
-    socket.addEventListener("message", handleWebSocketMessage);
-    socket.addEventListener("close", () => {
-      console.log("Desconectado del servidor WebSocket");
-    });
-  } catch (error) {
-    console.error("Error conectando al WebSocket:", error);
-  }
-}
-
-// Handle WebSocket Messages
-function handleWebSocketMessage(event) {
-  const message = JSON.parse(event.data);
-  console.log("Mensaje recibido del servidor WebSocket:", message);
-
-  switch (message.type) {
-    case "penalty":
-      showPenaltyNotification(message.data);
-      break;
-    case "geofence":
-      drawGeofence(message.data);
-      break;
-    case "usageTimeUpdate":
-      updateUsageTime(message.data);
-      break;
-    default:
-      console.warn("Tipo de mensaje desconocido:", message.type);
-  }
-}
-
-// Start Biking Handler
-async function handleStartBiking() {
-  const userInput = document.getElementById("username-input").value.trim();
-  const passwordInput = document.getElementById("password-input").value.trim();
-
-  if (userInput && passwordInput) {
-    const validUser = await validateUser(userInput, passwordInput);
-    if (validUser) {
-      username = userInput;
-      document.getElementById("initial-screen").style.display = "none";
-      document.getElementById("map-container").style.display = "block";
       try {
-        await startUpdatingLocation();
-      } catch (error) {
-        showError("No se pudo obtener su ubicación.");
-      }
-    } else {
-      showError("Nombre de usuario o contraseña no válidos. Por favor, intente nuevamente.");
-    }
-  } else {
-    showError("Por favor, introduce un nombre de usuario y contraseña válidos.");
-  }
-}
+        const response = await axios.post(odooConfig.url, payload);
+        console.log("Odoo response:", response.data); // Log Odoo response
 
-// Validate Username
-async function validateUsername(username) {
-  try {
-    const response = await fetch("https://bikely.mooo.com:3000/validate-username", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username })
-    });
-    const result = await response.json();
-    return result.valid;
-  } catch (error) {
-    console.error("Error validando el nombre de usuario:", error);
-    return false;
-  }
-}
-
-// Validate User
-async function validateUser(username, password) {
-  try {
-    const response = await fetch("https://bikely.mooo.com:3000/validate-user", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password })
-    });
-    const text = await response.text(); // Capture raw response text
-    console.log("Raw response text:", text);
-    const result = JSON.parse(text); // Parse the response manually
-    return result.valid;
-  } catch (error) {
-    console.error("Error validando el usuario:", error);
-    return false;
-  }
-}
-
-// Start Updating Location
-async function startUpdatingLocation() {
-  if (navigator.geolocation) {
-    intervalId = setInterval(async () => {
-      try {
-        const position = await getCurrentPosition();
-        const location = { lat: position.coords.latitude, lng: position.coords.longitude };
-        updateUserLocationOnMap(location, true); // Pass true to prevent centering map
-        await sendLocationToBackend(location);
-      } catch (error) {
-        console.error("Error obteniendo la ubicación actual:", error);
-        if (!initialLocationSet) {
-          showError("No se pudo obtener su ubicación.");
+        if (response.data.result) {
+          res.status(200).json({ valid: true });
+        } else {
+          res.status(401).json({ valid: false }); // Use 401 for unauthorized
         }
+      } catch (error) {
+        console.error("Error connecting to Odoo:", error);
+        if (error.response) {
+          // The request was made and the server responded with a status code
+          // that falls out of the range of 2xx
+          console.error("Error response data:", error.response.data);
+          console.error("Error response status:", error.response.status);
+          console.error("Error response headers:", error.response.headers);
+        } else if (error.request) {
+          // The request was made but no response was received
+          console.error("Error request:", error.request);
+        } else {
+          // Something happened in setting up the request that triggered an Error
+          console.error("Error message:", error.message);
+        }
+        res.status(500).json({ valid: false, error: "Internal Server Error", details: error.message });
       }
-    }, 5000); // Update every 5 seconds
-  } else {
-    showError("La geolocalización no es compatible con este navegador.");
-  }
-}
-
-// Get Current Position
-function getCurrentPosition() {
-  return new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
-      enableHighAccuracy: true,
-      timeout: 5000,
-      maximumAge: 0
     });
-  });
-}
 
-// Update User Location on Map
-function updateUserLocationOnMap(location, preventCentering = false) {
-  if (!userMarker) {
-    userMarker = new google.maps.Marker({
-      position: location,
-      map,
-      title: "Ubicación Actual"
+    app.post("/company/location", async (req, res) => {
+      const { location, username } = req.body;
+      console.log("Received coordinates:", location);
+      console.log("User:", username);
+      // Store location in the database
+      broadcastToClients({
+        type: "locationUpdate",
+        data: { username, location, enterTime: new Date() }
+      });
+      res.sendStatus(200);
     });
-  } else {
-    userMarker.setPosition(location);
-  }
 
-  // Center the map only initially
-  if (!initialLocationSet && !preventCentering) {
-    map.setCenter(location);
-    initialLocationSet = true;
-  }
-}
+    wss.on("connection", (ws) => {
+      ws.on("message", (message) => {
+        const parsedMessage = JSON.parse(message);
+        if (parsedMessage.type === "register") {
+          clients[parsedMessage.username] = ws;
+          sendUserList();
+        } else if (parsedMessage.type === "usageTime") {
+          if (userViolations[parsedMessage.username]) {
+            userViolations[parsedMessage.username].usageTime = parsedMessage.usageTime;
+            broadcastToClients({
+              type: "usageTimeUpdate",
+              data: { username: parsedMessage.username, usageTime: parsedMessage.usageTime }
+            });
+          }
+        }
+      });
 
-// Send Location to Backend
-async function sendLocationToBackend(location) {
-  try {
-    console.log("Enviando ubicación al backend:", location);
-    const response = await fetch("https://bikely.mooo.com:3000/company/location", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ location, username })
+      ws.on("close", () => {
+        for (const [username, clientWs] of Object.entries(clients)) {
+          if (clientWs === ws) {
+            delete clients[username];
+            sendUserList();
+            break;
+          }
+        }
+      });
     });
-    if (!response.ok) {
-      throw new Error("Error al enviar la ubicación.");
+
+    function sendUserList() {
+      const users = Object.keys(clients).map(username => ({ username }));
+      const message = JSON.stringify({ type: "userList", data: users });
+      broadcastToClients(message);
     }
-    console.log("Ubicación enviada al backend exitosamente");
-  } catch (error) {
-    console.error("Error al enviar la ubicación:", error);
-  }
-}
 
-// Show Error
-function showError(message) {
-  alert(message);
-}
-
-// Draw Geofence
-function drawGeofence(data) {
-  const geofenceCoordinates = [
-    { lat: 37.88562, lng: -4.77867 },
-    { lat: 37.88572, lng: -4.77848 },
-    { lat: 37.88580, lng: -4.77862 },
-    { lat: 37.88569, lng: -4.77881 }
-  ];
-
-  if (geofencePolygon) {
-    geofencePolygon.setMap(null);
-  }
-
-  geofencePolygon = new google.maps.Polygon({
-    paths: geofenceCoordinates,
-    strokeColor: "#FF0000",
-    strokeOpacity: 0.8,
-    strokeWeight: 2,
-    fillColor: "#FF0000",
-    fillOpacity: 0.35
-  });
-
-  geofencePolygon.setMap(map);
-}
-
-// Trace Route to Place
-function traceRouteToPlace(destination, placeName, placePhotoUrl) {
-  const directionsService = new google.maps.DirectionsService();
-
-  const request = {
-    origin: userMarker.getPosition(),
-    destination,
-    travelMode: google.maps.TravelMode.BICYCLING
-  };
-
-  directionsService.route(request, (result, status) => {
-    if (status === google.maps.DirectionsStatus.OK) {
-      directionsRenderer.setDirections(result);
-    } else {
-      showError("No se pudo trazar la ruta al destino.");
+    function broadcastToClients(message) {
+      const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
+      Object.values(clients).forEach(client => client.send(messageStr));
     }
-  });
 
-  if (placePhotoUrl) {
-    document.getElementById("place-image").src = placePhotoUrl;
-    document.getElementById("place-name").textContent = placeName;
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+
+  } catch (err) {
+    console.error('Error connecting to MongoDB:', err.message);
+    process.exit(1);
   }
-}
-
-// Show Penalty Notification
-function showPenaltyNotification(penaltyData) {
-  const notification = document.createElement("div");
-  notification.className = "penalty-notification";
-  notification.textContent = `¡Penalización! Motivo: ${penaltyData.reason}`;
-  document.body.appendChild(notification);
-  setTimeout(() => {
-    document.body.removeChild(notification);
-  }, 5000);
-}
+})();
