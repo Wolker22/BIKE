@@ -121,7 +121,7 @@ const corsOptions = {
     });
 
   } catch (err) {
-    console.error('Error connecting to MongoDB:', err.message);
+    console.error('Error connecting to MongoDB:', err.message);//hola
     process.exit(1);
   }
 })();
