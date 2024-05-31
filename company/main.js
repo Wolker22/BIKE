@@ -4,25 +4,25 @@ let geofenceCoordinates = null;
 let socket;
 let users = {};
 let penalties = {};
-let locationUpdateInterval = 30000; // 30 segundos
+let locationUpdateInterval = 30000; // 30 seconds
 let usageTimers = {};
-let penaltyTime = 5000; // 5 segundos por penalización
+let penaltyTime = 5000; // 5 seconds for penalty
 
 document.addEventListener("DOMContentLoaded", () => {
   initMap();
   initWebSocket();
-  loadUserUsageTimesFromLocal(); // Cargar tiempos de uso de los usuarios desde localStorage
+  loadUserUsageTimesFromLocal(); // Load user usage times from localStorage
 });
 
 function initMap() {
-  const coords = { lat: 37.888175, lng: -4.779383 }; // Centro de Córdoba, España
+  const coords = { lat: 37.888175, lng: -4.779383 }; // Center of Córdoba, Spain
 
   map = new google.maps.Map(document.getElementById("map"), {
     zoom: 12,
     center: coords,
   });
 
-  // Definir geovalla para cubrir toda Córdoba, España
+  // Set geofence to cover all of Córdoba, Spain
   geofenceCoordinates = [
     { lat: 37.9514, lng: -4.8734 },
     { lat: 37.9514, lng: -4.6756 },
@@ -32,8 +32,8 @@ function initMap() {
 
   geofencePolygon = new google.maps.Polygon({
     paths: geofenceCoordinates,
-    strokeColor: '#FF0000', // Color rojo para el borde de la geovalla
-    fillOpacity: 0.2, // Transparencia del área de la geovalla
+    strokeColor: '#FF0000', // Red color for the geofence border
+    fillOpacity: 0.2, // Transparency of the geofence area
   });
   geofencePolygon.setMap(map);
 }
@@ -57,12 +57,15 @@ function initWebSocket() {
     } else if (message.type === "locationUpdate") {
       updateUserLocation(message.data);
     } else if (message.type === "usageTimeUpdate") {
-      updateUserUsageTime(message.data.username, message.data.usageTime);
+      updateUserUsageTime(message.data);
+    } else if (message.type === "registerConfirmation") {
+      startUserUsageTimer(message.username);
     }
   });
 
   socket.addEventListener("close", () => {
     console.log("Disconnected from WebSocket server");
+    markUsersAsDisconnected();
   });
 
   socket.addEventListener("error", (error) => {
@@ -70,150 +73,190 @@ function initWebSocket() {
   });
 }
 
-function startLocationUpdateTimer() {
-  setInterval(() => {
-    for (const username in users) {
-      const user = users[username];
-      if (user && user.marker) {
-        checkGeofence(user.marker.getPosition(), username);
-      }
-    }
-  }, locationUpdateInterval);
-}
-
-function checkGeofence(position, username) {
-  const point = new google.maps.LatLng(position.lat(), position.lng());
-  const isInsideGeofence = google.maps.geometry.poly.containsLocation(point, geofencePolygon);
-
-  if (!isInsideGeofence) {
-    applyPenalty(username);
-  }
-}
-
-function applyPenalty(username) {
-  if (!penalties[username]) {
-    penalties[username] = 0;
-  }
-  penalties[username] += 1;
-  updateUserPenalties(username);
-}
-
 function updateUserList(usersData) {
-  users = {};
-  const userListElement = document.getElementById("userList");
-  userListElement.innerHTML = "";
-
-  usersData.forEach((user) => {
-    users[user.username] = {
-      marker: null,
-      usageTime: 0,
-      penalties: 0,
-    };
-    const listItem = document.createElement("li");
-    listItem.textContent = user.username;
-    userListElement.appendChild(listItem);
+  console.log("Updating user list:", usersData);
+  usersData.forEach(user => {
+    if (!users[user.username]) {
+      users[user.username] = {
+        marker: new google.maps.Marker({
+          position: user.location || { lat: 0, lng: 0 },
+          map: map,
+          title: user.username
+        }),
+        penalties: user.penalties || 0,
+        usageTime: loadUserUsageTime(user.username) || user.usageTime || 0,
+        isConnected: true
+      };
+      startUserUsageTimer(user.username); // Start usage timer for new user
+    } else {
+      users[user.username].penalties = user.penalties || 0;
+      users[user.username].usageTime = loadUserUsageTime(user.username) || user.usageTime || 0;
+      users[user.username].isConnected = true;
+    }
   });
-
   renderUserList();
 }
 
 function updateUserLocation(data) {
   const { username, location } = data;
-  if (!users[username]) {
-    return;
-  }
 
-  if (!users[username].marker) {
-    users[username].marker = new google.maps.Marker({
-      position: location,
-      map: map,
-      title: username,
-    });
+  if (!users[username]) {
+    users[username] = {
+      marker: new google.maps.Marker({
+        position: location,
+        map: map,
+        title: username
+      }),
+      penalties: 0,
+      usageTime: loadUserUsageTime(username) || 0,
+      isConnected: true
+    };
+    startUserUsageTimer(username); // Start usage timer for new user
   } else {
     users[username].marker.setPosition(location);
+    users[username].isConnected = true;
   }
-}
 
-function updateUserPenalties(username) {
-  const user = users[username];
-  if (user) {
-    user.penalties = penalties[username];
-    renderUserList();
-  }
-}
+  const latLng = new google.maps.LatLng(location.lat, location.lng);
+  const isOutsideGeofence = !google.maps.geometry.poly.containsLocation(latLng, geofencePolygon);
 
-function updateUserUsageTime(username, usageTime) {
-  const user = users[username];
-  if (user) {
-    user.usageTime = usageTime;
-    saveUserUsageTime(username, usageTime); // Guardar el tiempo de uso en localStorage
-    renderUserList();
+  if (isOutsideGeofence) {
+    if (!penalties[username]) {
+      penalties[username] = { count: 0, startTime: Date.now() };
+    } else {
+      const timeOutside = Date.now() - penalties[username].startTime;
+      if (timeOutside > penaltyTime) {
+        socket.send(JSON.stringify({ type: "penalty", data: { username, reason: "Outside geofence" } }));
+        penalties[username].count += 1; // Increase the penalty count
+        penalties[username].startTime = Date.now(); // Reset the start time
+      }
+    }
+  } else {
+    delete penalties[username];
   }
+
+  users[username].penalties = penalties[username]?.count || 0; // Update penalties count
+  renderUserList();
 }
 
 function renderUserList() {
-  const userListElement = document.getElementById("userList");
-  userListElement.innerHTML = "";
-
-  for (const username in users) {
+  const userListContainer = document.getElementById("user-list");
+  if (!userListContainer) {
+    console.error("User list container not found");
+    return;
+  }
+  userListContainer.innerHTML = "";
+  Object.keys(users).forEach(username => {
     const user = users[username];
-    const listItem = document.createElement("li");
-    listItem.textContent = `${username} - Uso: ${user.usageTime} mins - Penalizaciones: ${user.penalties}`;
-    userListElement.appendChild(listItem);
+    const userElement = document.createElement("li");
+    userElement.innerHTML = `
+      <strong>Username:</strong> ${username}<br>
+      <strong>Penalties:</strong> ${user.penalties}<br>
+      <strong>Usage Time:</strong> ${user.usageTime} seconds<br>
+      <strong>Location:</strong> Latitude: ${user.marker.getPosition().lat()}, Longitude: ${user.marker.getPosition().lng()}<br>
+      <strong>Status:</strong> ${user.isConnected ? 'Connected' : 'Disconnected'}<br>
+      <button onclick="stopUserUsageTimer('${username}')">Stop Timer</button>
+      <button onclick="generateExcelForUser('${username}')">Generate Excel</button>
+    `;
+    userListContainer.appendChild(userElement);
+  });
+}
+
+function stopUserUsageTimer(username) {
+  if (usageTimers[username]) {
+    clearInterval(usageTimers[username]);
+    delete usageTimers[username];
+    console.log(`Timer stopped for user ${username}`);
   }
 }
 
-function saveUserUsageTime(username, usageTime) {
-  localStorage.setItem(`userUsageTime_${username}`, usageTime);
-}
-
-function loadUserUsageTimesFromLocal() {
-  for (const username in users) {
-    const usageTime = localStorage.getItem(`userUsageTime_${username}`);
-    if (usageTime) {
-      updateUserUsageTime(username, parseInt(usageTime));
-    }
-  }
-}
-
-document.getElementById("generateInvoiceBtn").addEventListener("click", () => {
-  const selectedUser = getSelectedUser(); // Implementa una función para obtener el usuario seleccionado
-  if (selectedUser) {
-    generateInvoiceForUser(selectedUser);
-  } else {
-    alert("Por favor, selecciona un usuario para generar la factura.");
-  }
-});
-
-function getSelectedUser() {
-  // Implementa la lógica para obtener el usuario seleccionado de la lista
-  const userListElement = document.getElementById("userList");
-  const selectedItem = userListElement.querySelector("li.selected"); // Supón que hay una clase 'selected' en el elemento li seleccionado
-  return selectedItem ? selectedItem.textContent.split(" - ")[0] : null;
-}
-
-function generateInvoiceForUser(username) {
+function generateExcelForUser(username) {
   const user = users[username];
   if (!user) {
     console.error(`User ${username} not found`);
     return;
   }
 
-  const invoiceData = {
-    username: username,
-    penalties: user.penalties,
-    usageTime: user.usageTime
+  const userData = [
+    ['Username', 'Penalties', 'Usage Time'],
+    [
+      username,
+      user.penalties,
+      user.usageTime,
+    ]
+  ];
+
+  const worksheet = XLSX.utils.aoa_to_sheet(userData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'User Data');
+  
+  XLSX.writeFile(workbook, `${username}_data.xlsx`);
+
+  // Reset user's usage time to 0 after generating the Excel file
+  user.usageTime = 0;
+  saveUserUsageTime(username, 0);
+  renderUserList();
+}
+
+function updateUserUsageTime(data) {
+  const { username, usageTime } = data;
+  if (users[username]) {
+    users[username].usageTime = usageTime;
+    saveUserUsageTime(username, usageTime);
+  }
+  renderUserList();
+}
+
+function startUserUsageTimer(username) {
+  if (!users[username]) return;
+
+  if (usageTimers[username]) {
+    clearInterval(usageTimers[username]);
+  }
+
+  const updateUsageTime = () => {
+    if (users[username] && users[username].isConnected) {
+      users[username].usageTime += 1;
+      saveUserUsageTime(username, users[username].usageTime);
+      socket.send(JSON.stringify({ type: "usageTimeUpdate", data: { username, usageTime: users[username].usageTime } }));
+      renderUserList();
+    }
   };
 
-  axios.post('/generate-invoice', invoiceData)
-    .then(response => {
-      console.log('Invoice created with ID:', response.data.invoiceId);
-      // Restablecer el tiempo de uso del usuario a 0 después de generar la factura
-      user.usageTime = 0;
-      saveUserUsageTime(username, 0);
-      renderUserList();
-    })
-    .catch(error => {
-      console.error('Error creating invoice:', error);
-    });
+  usageTimers[username] = setInterval(updateUsageTime, 1000);
+}
+
+function startLocationUpdateTimer() {
+  setInterval(() => {
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: "requestLocationUpdates" }));
+    } else {
+      console.error("Socket is not open or undefined.");
+    }
+  }, locationUpdateInterval);
+}
+
+function markUsersAsDisconnected() {
+  Object.keys(users).forEach(username => {
+    users[username].isConnected = false;
+    if (usageTimers[username]) {
+      clearInterval(usageTimers[username]);
+      delete usageTimers[username];
+    }
+  });
+  renderUserList();
+}
+
+function saveUserUsageTime(username, usageTime) {
+  localStorage.setItem(`userUsageTime_${username}`, usageTime);
+}
+
+function loadUserUsageTime(username) {
+  return parseInt(localStorage.getItem(`userUsageTime_${username}`)) || 0;
+}
+
+function loadUserUsageTimesFromLocal() {
+  Object.keys(users).forEach(username => {
+    users[username].usageTime = loadUserUsageTime(username);
+  });
 }
