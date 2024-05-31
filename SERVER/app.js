@@ -5,10 +5,9 @@ const cors = require("cors");
 const WebSocket = require("ws");
 const path = require("path");
 const axios = require("axios");
-const connectDB = require('./config/db');
 const locationsRouter = require("./routes/locations");
 const geofenceRouter = require("./routes/geofence");
-const Geofence = require("./models/geofence");
+const connectDB = require('./config/db');
 
 // Read SSL certificates
 const privateKey = fs.readFileSync('/etc/letsencrypt/live/bikely.mooo.com/privkey.pem', 'utf8');
@@ -22,25 +21,18 @@ const wss = new WebSocket.Server({ server });
 let clients = {};
 const userViolations = {};
 
-const odooConfig = {
-  url: 'https://bikely.csproject.org/jsonrpc',
-  db: 'CSProject',
-  uid: 'i12sagud@uco.es',
-  password: 'trabajosif123',
-};
-
-const corsOptions = {
-  origin: 'https://bikely.mooo.com:3000',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true,
-};
-
+// Connect to the database
 (async () => {
   try {
     await connectDB();
     console.log('MongoDB connected...');
 
+    const corsOptions = {
+      origin: 'https://bikely.mooo.com:3000',
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization'],
+      credentials: true,
+    };
     app.use(cors(corsOptions));
     app.options('*', cors(corsOptions));
 
@@ -50,8 +42,16 @@ const corsOptions = {
     app.use("/locations", locationsRouter);
     app.use("/geofence", geofenceRouter);
 
+    const odooConfig = {
+      url: 'https://bikely.csproject.org/jsonrpc',
+      db: 'CSProject',
+      uid: 'i12sagud@uco.es',
+      password: 'trabajosif123',
+    };
+
     app.post("/validate-user", async (req, res) => {
       const { username, password } = req.body;
+
       try {
         const response = await axios.post(odooConfig.url, {
           jsonrpc: "2.0",
@@ -97,31 +97,14 @@ const corsOptions = {
       });
     });
 
-    // Watch for changes in Geofence collection
-    const geofenceChangeStream = Geofence.watch();
-    geofenceChangeStream.on('change', (change) => {
-      if (change.operationType === 'insert') {
-        const newGeofence = change.fullDocument;
-        broadcastGeofenceUpdate(newGeofence);
-      }
-    });
-
-    function broadcastGeofenceUpdate(geofence) {
-      const message = JSON.stringify({ type: 'geofenceUpdate', data: geofence });
-      Object.values(clients).forEach(client => {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(message);
-        }
-      });
-    }
-
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
 
   } catch (err) {
-    console.error('Error connecting to MongoDB:', err.message);//hola
+    console.error('Error connecting to MongoDB:', err.message);
     process.exit(1);
   }
 })();
+

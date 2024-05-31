@@ -1,20 +1,10 @@
 const mongoose = require('mongoose');
-const { v4: uuidv4 } = require('uuid');
+const Schema = mongoose.Schema;
 
-const geofenceSchema = new mongoose.Schema({
-  geofenceId: {
-    type: String,
-    required: [true, 'Geofence ID is required'],
-    default: uuidv4
-  },
-  name: {
-    type: String,
-    required: [true, 'Name is required']
-  },
-  coordinates: {
-    type: Array,
-    required: [true, 'Coordinates are required']
-  }
+const geofenceSchema = new Schema({
+  geofenceId: { type: String, required: true },
+  name: { type: String, required: true },
+  coordinates: { type: [{ lat: Number, lng: Number }], required: true }
 });
 
 module.exports = mongoose.model('Geofence', geofenceSchema);
