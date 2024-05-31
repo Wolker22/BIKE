@@ -4,14 +4,18 @@ const Geofence = require('../models/geofence');
 
 // Create a new geofence
 router.post('/', async (req, res) => {
-  const { name, coordinates } = req.body;
+  const { name, coordinates, geofenceId } = req.body;
 
   if (!name || !coordinates) {
     return res.status(400).json({ error: 'Name and coordinates are required' });
   }
 
   try {
-    const geofence = new Geofence({ name, coordinates });
+    const geofence = new Geofence({
+      name,
+      coordinates,
+      geofenceId: geofenceId || undefined // Allow schema to use default if not provided
+    });
     await geofence.save();
     res.status(201).json({ message: 'Geofence created successfully', geofence });
   } catch (error) {
