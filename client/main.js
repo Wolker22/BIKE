@@ -62,7 +62,8 @@ async function handlePlaceChanged() {
   }
 
   try {
-    const userLocation = await getUserLocation();
+    const position = await getCurrentPosition();
+    const userLocation = { lat: position.coords.latitude, lng: position.coords.longitude };
     map.setCenter(userLocation);
     map.setZoom(19);
     traceRouteToPlace(place.geometry.location, place.name, place.photos?.[0]?.getUrl());
@@ -189,9 +190,14 @@ async function startUpdatingLocation() {
 // Get Current Position
 function getCurrentPosition() {
   return new Promise((resolve, reject) => {
-    navigator.geolocation.getCurrentPosition(resolve, reject);
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
+      enableHighAccuracy: true,
+      timeout: 5000,
+      maximumAge: 0
+    });
   });
 }
+
 
 // Update User Location on Map
 function updateUserLocationOnMap(location) {
