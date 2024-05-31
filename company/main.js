@@ -33,7 +33,6 @@ function initMap() {
   geofencePolygon = new google.maps.Polygon({
     paths: geofenceCoordinates,
     strokeColor: '#FF0000', // Red color for the geofence border
-    fillColor: '#FF0000', // Red color for the geofence area
     fillOpacity: 0.2, // Transparency of the geofence area
   });
   geofencePolygon.setMap(map);
@@ -118,7 +117,10 @@ function updateUserLocation(data) {
     users[username].isConnected = true;
   }
 
-  if (geofencePolygon && !google.maps.geometry.poly.containsLocation(new google.maps.LatLng(location), geofencePolygon)) {
+  const latLng = new google.maps.LatLng(location.lat, location.lng);
+  const isOutsideGeofence = !google.maps.geometry.poly.containsLocation(latLng, geofencePolygon);
+
+  if (isOutsideGeofence) {
     if (!penalties[username]) {
       penalties[username] = { count: 0, startTime: Date.now() };
     } else {
