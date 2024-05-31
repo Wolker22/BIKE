@@ -51,7 +51,6 @@ const userViolations = {};
 
     app.post("/validate-user", async (req, res) => {
       const { username, password } = req.body;
-      console.log("Received username:", username); // Log received username
 
       try {
         const response = await axios.post(odooConfig.url, {
@@ -73,14 +72,10 @@ const userViolations = {};
           id: new Date().getTime()
         });
 
-        console.log("Odoo response:", response.data); // Log Odoo response
-
-        const users = response.data.result;
-
-        if (users.length > 0 && users[0].password === password) {
+        if (response.data.result.length > 0 && response.data.result[0].password === password) {
           res.status(200).json({ valid: true });
         } else {
-          res.status(401).json({ valid: false });
+          res.status(404).json({ valid: false });
         }
       } catch (error) {
         console.error("Error connecting to Odoo:", error);
