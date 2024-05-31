@@ -256,11 +256,11 @@ function showError(message) {
 // Draw Geofence
 function drawGeofence(data) {
   // Definir las coordenadas de la geocerca para Córdoba
-  const geofenceCoordinates = [
-    { lat: 37.888175, lng: -4.779383 },
-    { lat: 37.889175, lng: -4.779383 },
-    { lat: 37.889175, lng: -4.778383 },
-    { lat: 37.888175, lng: -4.778383 }
+  geofenceCoordinates = [
+    { lat: 37.9514, lng: -4.8734 },
+    { lat: 37.9514, lng: -4.6756 },
+    { lat: 37.8254, lng: -4.6756 },
+    { lat: 37.8254, lng: -4.8734 },
   ];
 
   if (geofencePolygon) {
