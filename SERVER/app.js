@@ -6,6 +6,7 @@ const WebSocket = require("ws");
 const path = require("path");
 const axios = require("axios");
 const locationsRouter = require("./routes/locations");
+const companyRouter = require("./routes/company");
 const geofenceRouter = require("./routes/geofence");
 const connectDB = require('./config/db');
 
@@ -41,6 +42,7 @@ const userViolations = {};
     app.use("/company", express.static(path.join(__dirname, "../company")));
     app.use("/locations", locationsRouter);
     app.use("/geofence", geofenceRouter);
+    app.use("/company", companyRouter);
 
     const odooConfig = {
       url: 'https://bikely.csproject.org/jsonrpc',
@@ -78,16 +80,12 @@ const userViolations = {};
       } catch (error) {
         console.error("Error connecting to Odoo:", error);
         if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
           console.error("Error response data:", error.response.data);
           console.error("Error response status:", error.response.status);
           console.error("Error response headers:", error.response.headers);
         } else if (error.request) {
-          // The request was made but no response was received
           console.error("Error request:", error.request);
         } else {
-          // Something happened in setting up the request that triggered an Error
           console.error("Error message:", error.message);
         }
         res.status(500).json({ valid: false, error: "Internal Server Error", details: error.message });
