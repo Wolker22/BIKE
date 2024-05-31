@@ -1,3 +1,4 @@
+// Global Variables
 let map;
 let autocomplete;
 let userMarker;
@@ -7,38 +8,32 @@ let directionsRenderer;
 let penaltyCount = 0;
 let socket;
 
-document.addEventListener("DOMContentLoaded", async () => {
+// Event Listeners
+document.addEventListener("DOMContentLoaded", initPage);
+document.getElementById("start-biking-button").addEventListener("click", handleStartBiking);
+
+// Page Initialization
+async function initPage() {
   try {
-    // Obtiene el valor del input de nombre de usuario
     const userInput = document.getElementById("username-input").value.trim();
-    if (userInput) username = userInput; // Verifica si hay un valor y lo asigna a username
-    document.getElementById("username-display").textContent = username;
-    initWebSocket();
+    if (userInput) {
+      const validUser = await validateUsername(userInput);
+      if (validUser) {
+        username = userInput;
+        document.getElementById("username-display").textContent = username;
+        initWebSocket();
+      } else {
+        showError("Nombre de usuario no válido. Por favor, intente nuevamente.");
+      }
+    }
   } catch (error) {
     console.error("Error obteniendo el nombre de usuario:", error);
   } finally {
     initMap();
   }
-}, { passive: true });
+}
 
-
-document.getElementById("start-biking-button").addEventListener("click", async () => {
-  const userInput = document.getElementById("username-input").value.trim(); // Obtener el valor del input y eliminar espacios en blanco al inicio y al final
-  if (userInput !== "") { // Verificar que el input no esté vacío
-    username = userInput; // Asignar el valor del input a la variable username
-    document.getElementById("initial-screen").style.display = "none";
-    document.getElementById("map-container").style.display = "block";
-    try {
-      await startUpdatingLocation();
-    } catch (error) {
-      showError("No se pudo obtener su ubicación.");
-    }
-  } else {
-    showError("Por favor, introduce un nombre de usuario válido."); // Mostrar un mensaje de error si el input está vacío
-  }
-});
-
-
+// Map Initialization
 function initMap() {
   const coords = { lat: 37.888175, lng: -4.779383 };
 
@@ -47,58 +42,46 @@ function initMap() {
     center: coords,
   });
 
-  autocomplete = new google.maps.places.Autocomplete(
-    document.getElementById("place-input"),
-    { types: ["geocode"] }
-  );
-
+  autocomplete = new google.maps.places.Autocomplete(document.getElementById("place-input"), { types: ["geocode"] });
   autocomplete.bindTo("bounds", map);
 
-  autocomplete.addListener("place_changed", async () => {
-    const place = autocomplete.getPlace();
-    if (!place.geometry || !place.geometry.location) {
-      showError("No se encontró información de este lugar.");
-      return;
-    }
-
-    try {
-      const userLocation = await getUserLocation();
-      map.setCenter(userLocation);
-      map.setZoom(19);
-      traceRouteToPlace(place.geometry.location, place.name, place.photos?.[0]?.getUrl());
-    } catch (error) {
-      showError("No se pudo obtener su ubicación.");
-    }
-  });
+  autocomplete.addListener("place_changed", handlePlaceChanged);
 
   directionsRenderer = new google.maps.DirectionsRenderer();
   directionsRenderer.setMap(map);
 
-  // Dibujar la geovalla que cubre toda Córdoba, España
   drawGeofence();
 }
 
+// Handle Place Changed
+async function handlePlaceChanged() {
+  const place = autocomplete.getPlace();
+  if (!place.geometry || !place.geometry.location) {
+    showError("No se encontró información de este lugar.");
+    return;
+  }
+
+  try {
+    const userLocation = await getUserLocation();
+    map.setCenter(userLocation);
+    map.setZoom(19);
+    traceRouteToPlace(place.geometry.location, place.name, place.photos?.[0]?.getUrl());
+  } catch (error) {
+    showError("No se pudo obtener su ubicación.");
+  }
+}
+
+// WebSocket Initialization
 function initWebSocket() {
   try {
-    socket = new WebSocket("wss://bikely.mooo.com:3000"); // Asegúrate de usar tu dominio y puerto correctos
+    socket = new WebSocket("wss://bikely.mooo.com:3000");
 
     socket.addEventListener("open", () => {
       console.log("Conectado al servidor WebSocket");
       socket.send(JSON.stringify({ type: "register", username }));
     });
 
-    socket.addEventListener("message", (event) => {
-      const message = JSON.parse(event.data);
-      console.log("Mensaje recibido del servidor WebSocket:", message);
-      if (message.type === "penalty") {
-        showPenaltyNotification(message.data);
-      } else if (message.type === "geofence") {
-        drawGeofence(message.data);
-      } else if (message.type === "usageTimeUpdate") {
-        updateUsageTime(message.data);
-      }
-    });
-
+    socket.addEventListener("message", handleWebSocketMessage);
     socket.addEventListener("close", () => {
       console.log("Desconectado del servidor WebSocket");
     });
@@ -107,74 +90,90 @@ function initWebSocket() {
   }
 }
 
-function showPenaltyNotification(penalty) {
-  penaltyCount++;
-  document.getElementById("penalty-count-value").textContent = penaltyCount;
-  showError(`Has recibido una multa: ${penalty.reason}`);
-}
+// Handle WebSocket Messages
+function handleWebSocketMessage(event) {
+  const message = JSON.parse(event.data);
+  console.log("Mensaje recibido del servidor WebSocket:", message);
 
-function drawGeofence(geofence) {
-  // Coordenadas que cubren toda Córdoba, España
-  const geofenceCoords = [
-    { lat: 37.9514, lng: -4.8734 },
-    { lat: 37.9514, lng: -4.6756 },
-    { lat: 37.8254, lng: -4.6756 },
-    { lat: 37.8254, lng: -4.8734 }
-  ];
-
-  new google.maps.Polygon({
-    paths: geofenceCoords,
-    strokeColor: "#FF0000",
-    strokeOpacity: 0.8,
-    strokeWeight: 2,
-    fillOpacity: 0.35,
-    map: map,
-  });
-}
-
-function updateUsageTime(data) {
-  document.getElementById("usage-time").textContent = `Tiempo de uso: ${data.usageTime} segundos`;
-}
-
-async function traceRouteToPlace(destination, name, photoUrl) {
-  try {
-    const userLocation = await getUserLocation();
-    const directionsService = new google.maps.DirectionsService();
-
-    const request = {
-      origin: userLocation,
-      destination: destination,
-      travelMode: google.maps.TravelMode.WALKING,
-    };
-
-    directionsService.route(request, (result, status) => {
-      if (status === google.maps.DirectionsStatus.OK) {
-        directionsRenderer.setDirections(result);
-        const placeData = {
-          name: name,
-          reviews: [],
-          photos: [{ getUrl: () => photoUrl }]
-        };
-        showPlaceInformation(placeData);
-      } else {
-        showError("Error al calcular la ruta.");
-      }
-    });
-  } catch (error) {
-    showError("No se pudo obtener su ubicación.");
+  switch (message.type) {
+    case "penalty":
+      showPenaltyNotification(message.data);
+      break;
+    case "geofence":
+      drawGeofence(message.data);
+      break;
+    case "usageTimeUpdate":
+      updateUsageTime(message.data);
+      break;
+    default:
+      console.warn("Tipo de mensaje desconocido:", message.type);
   }
 }
 
+// Start Biking Handler
+async function handleStartBiking() {
+  const userInput = document.getElementById("username-input").value.trim();
+  const passwordInput = document.getElementById("password-input").value.trim();
+
+  if (userInput && passwordInput) {
+    const validUser = await validateUser(userInput, passwordInput);
+    if (validUser) {
+      username = userInput;
+      document.getElementById("initial-screen").style.display = "none";
+      document.getElementById("map-container").style.display = "block";
+      try {
+        await startUpdatingLocation();
+      } catch (error) {
+        showError("No se pudo obtener su ubicación.");
+      }
+    } else {
+      showError("Nombre de usuario o contraseña no válidos. Por favor, intente nuevamente.");
+    }
+  } else {
+    showError("Por favor, introduce un nombre de usuario y contraseña válidos.");
+  }
+}
+
+// Validate Username
+async function validateUsername(username) {
+  try {
+    const response = await fetch("https://bikely.mooo.com:3000/validate-username", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username })
+    });
+    const result = await response.json();
+    return result.valid;
+  } catch (error) {
+    console.error("Error validando el nombre de usuario:", error);
+    return false;
+  }
+}
+
+// Validate User
+async function validateUser(username, password) {
+  try {
+    const response = await fetch("https://bikely.mooo.com:3000/validate-user", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password })
+    });
+    const result = await response.json();
+    return result.valid;
+  } catch (error) {
+    console.error("Error validando el nombre de usuario y contraseña:", error);
+    return false;
+  }
+}
+
+// Get User Location
 async function getUserLocation() {
   if (navigator.geolocation) {
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           console.log("Ubicación del usuario obtenida:", position.coords);
-          resolve({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
+          resolve({ lat: position.coords.latitude, lng: position.coords.longitude });
         },
         (error) => {
           console.error("Error obteniendo la ubicación del usuario:", error);
@@ -187,6 +186,7 @@ async function getUserLocation() {
   }
 }
 
+// Start Updating Location
 async function startUpdatingLocation() {
   try {
     const userLocation = await getUserLocation();
@@ -209,20 +209,21 @@ async function startUpdatingLocation() {
       userMarker.setPosition(userLocation);
       console.log("Marcador del usuario actualizado a (intervalo):", userLocation);
       await sendLocationToBackend(userLocation);
-    }, 30000); // 30 segundos
+    }, 30000); // 30 seconds
   } catch (error) {
     console.error("Error en startUpdatingLocation:", error);
     showError("No se pudo obtener su ubicación.");
   }
 }
 
+// Send Location to Backend
 async function sendLocationToBackend(location) {
   try {
     console.log("Enviando ubicación al backend:", location);
-    const response = await fetch("https://bikely.mooo.com:3000/company/location", { // Usar tu dominio
+    const response = await fetch("https://bikely.mooo.com:3000/company/location", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ location, username }), // Asegúrate de que `username` y `location` se están enviando correctamente
+      body: JSON.stringify({ location, username }),
     });
     if (!response.ok) {
       throw new Error("Error al enviar la ubicación.");
@@ -233,6 +234,38 @@ async function sendLocationToBackend(location) {
   }
 }
 
+// Draw Geofence
+function drawGeofence(geofence) {
+  const geofenceCoords = geofence || [
+    { lat: 37.9514, lng: -4.8734 },
+    { lat: 37.9514, lng: -4.6756 },
+    { lat: 37.8254, lng: -4.6756 },
+    { lat: 37.8254, lng: -4.8734 }
+  ];
+
+  new google.maps.Polygon({
+    paths: geofenceCoords,
+    strokeColor: "#FF0000",
+    strokeOpacity: 0.8,
+    strokeWeight: 2,
+    fillOpacity: 0.35,
+    map: map,
+  });
+}
+
+// Show Penalty Notification
+function showPenaltyNotification(penalty) {
+  penaltyCount++;
+  document.getElementById("penalty-count-value").textContent = penaltyCount;
+  showError(`Has recibido una multa: ${penalty.reason}`);
+}
+
+// Update Usage Time
+function updateUsageTime(data) {
+  document.getElementById("usage-time").textContent = `Tiempo de uso: ${data.usageTime} segundos`;
+}
+
+// Show Error
 function showError(message) {
   const errorElement = document.getElementById("error-message");
   errorElement.textContent = message;
@@ -240,4 +273,10 @@ function showError(message) {
   setTimeout(() => {
     errorElement.style.display = "none";
   }, 3000);
+}
+
+// Show Place Information
+function showPlaceInformation(placeData) {
+  // Display place information, such as name and photos
+  console.log("Información del lugar:", placeData);
 }
