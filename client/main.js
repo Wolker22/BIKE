@@ -7,6 +7,7 @@ let intervalId;
 let directionsRenderer;
 let penaltyCount = 0;
 let socket;
+let initialLocationSet = false;
 
 // Event Listeners
 document.addEventListener("DOMContentLoaded", initPage);
@@ -176,7 +177,7 @@ async function startUpdatingLocation() {
       try {
         const position = await getCurrentPosition();
         const location = { lat: position.coords.latitude, lng: position.coords.longitude };
-        updateUserLocationOnMap(location);
+        updateUserLocationOnMap(location, true); // Pass false to prevent centering map
         await sendLocationToBackend(location);
       } catch (error) {
         console.error("Error obteniendo la ubicación actual:", error);
@@ -198,9 +199,8 @@ function getCurrentPosition() {
   });
 }
 
-
 // Update User Location on Map
-function updateUserLocationOnMap(location) {
+function updateUserLocationOnMap(location, preventCentering = false) {
   if (!userMarker) {
     userMarker = new google.maps.Marker({
       position: location,
@@ -210,7 +210,12 @@ function updateUserLocationOnMap(location) {
   } else {
     userMarker.setPosition(location);
   }
-  map.setCenter(location);
+
+  // Center the map only initially
+  if (!initialLocationSet && !preventCentering) {
+    map.setCenter(location);
+    initialLocationSet = true;
+  }
 }
 
 // Send Location to Backend
