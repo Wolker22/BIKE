@@ -1,12 +1,7 @@
 // Global Variables
-let map;
-let autocomplete;
-let userMarker;
+let map, autocomplete, userMarker, intervalId, directionsRenderer, geofencePolygon, socket;
 let username = "NO USUARIO";
-let intervalId;
-let directionsRenderer;
 let penaltyCount = 0;
-let socket;
 
 // Event Listeners
 document.addEventListener("DOMContentLoaded", initPage);
@@ -14,29 +9,23 @@ document.getElementById("start-biking-button").addEventListener("click", handleS
 
 // Page Initialization
 async function initPage() {
-  try {
-    const userInput = document.getElementById("username-input").value.trim();
-    if (userInput) {
-      const validUser = await validateUsername(userInput);
-      if (validUser) {
-        username = userInput;
-        document.getElementById("username-display").textContent = username;
-        initWebSocket();
-      } else {
-        showError("Nombre de usuario no válido. Por favor, intente nuevamente.");
-      }
+  initMap();
+  const userInput = document.getElementById("username-input").value.trim();
+  if (userInput) {
+    const validUser = await validateUsername(userInput);
+    if (validUser) {
+      username = userInput;
+      document.getElementById("username-display").textContent = username;
+      initWebSocket();
+    } else {
+      showError("Nombre de usuario no válido. Por favor, intente nuevamente.");
     }
-  } catch (error) {
-    console.error("Error obteniendo el nombre de usuario:", error);
-  } finally {
-    initMap();
   }
 }
 
 // Map Initialization
 function initMap() {
   const coords = { lat: 37.888175, lng: -4.779383 };
-
   map = new google.maps.Map(document.getElementById("map"), {
     zoom: 12,
     center: coords,
@@ -44,13 +33,12 @@ function initMap() {
 
   autocomplete = new google.maps.places.Autocomplete(document.getElementById("place-input"), { types: ["geocode"] });
   autocomplete.bindTo("bounds", map);
-
   autocomplete.addListener("place_changed", handlePlaceChanged);
 
   directionsRenderer = new google.maps.DirectionsRenderer();
   directionsRenderer.setMap(map);
 
-  drawGeofence();
+  fetchGeofence();
 }
 
 // Handle Place Changed
@@ -82,9 +70,7 @@ function initWebSocket() {
     });
 
     socket.addEventListener("message", handleWebSocketMessage);
-    socket.addEventListener("close", () => {
-      console.log("Desconectado del servidor WebSocket");
-    });
+    socket.addEventListener("close", () => console.log("Desconectado del servidor WebSocket"));
   } catch (error) {
     console.error("Error conectando al WebSocket:", error);
   }
@@ -172,13 +158,9 @@ async function getUserLocation() {
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          console.log("Ubicación del usuario obtenida:", position.coords);
           resolve({ lat: position.coords.latitude, lng: position.coords.longitude });
         },
-        (error) => {
-          console.error("Error obteniendo la ubicación del usuario:", error);
-          reject(new Error("No se pudo obtener la ubicación."));
-        }
+        (error) => reject(new Error("No se pudo obtener la ubicación."))
       );
     });
   } else {
@@ -198,20 +180,16 @@ async function startUpdatingLocation() {
         position: userLocation,
         map: map,
       });
-      console.log("Marcador del usuario creado en:", userLocation);
     } else {
       userMarker.setPosition(userLocation);
-      console.log("Marcador del usuario actualizado a:", userLocation);
     }
 
     intervalId = setInterval(async () => {
       const userLocation = await getUserLocation();
       userMarker.setPosition(userLocation);
-      console.log("Marcador del usuario actualizado a (intervalo):", userLocation);
       await sendLocationToBackend(userLocation);
     }, 30000); // 30 seconds
   } catch (error) {
-    console.error("Error en startUpdatingLocation:", error);
     showError("No se pudo obtener su ubicación.");
   }
 }
@@ -219,7 +197,6 @@ async function startUpdatingLocation() {
 // Send Location to Backend
 async function sendLocationToBackend(location) {
   try {
-    console.log("Enviando ubicación al backend:", location);
     const response = await fetch("https://bikely.mooo.com:3000/company/location", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -228,26 +205,35 @@ async function sendLocationToBackend(location) {
     if (!response.ok) {
       throw new Error("Error al enviar la ubicación.");
     }
-    console.log("Ubicación enviada al backend exitosamente");
   } catch (error) {
     console.error("Error al enviar la ubicación:", error);
   }
 }
 
-// Draw Geofence
-function drawGeofence(geofence) {
-  const geofenceCoords = geofence || [
-    { lat: 37.9514, lng: -4.8734 },
-    { lat: 37.9514, lng: -4.6756 },
-    { lat: 37.8254, lng: -4.6756 },
-    { lat: 37.8254, lng: -4.8734 }
-  ];
+// Fetch Geofence from Server
+function fetchGeofence() {
+  fetch('/geofence')
+    .then(response => response.json())
+    .then(data => {
+      if (data.coordinates) {
+        drawGeofence(data.coordinates);
+      }
+    })
+    .catch(error => console.error('Error fetching geofence:', error));
+}
 
-  new google.maps.Polygon({
-    paths: geofenceCoords,
-    strokeColor: "#FF0000",
+// Draw Geofence
+function drawGeofence(coordinates) {
+  if (geofencePolygon) {
+    geofencePolygon.setMap(null);
+  }
+
+  geofencePolygon = new google.maps.Polygon({
+    paths: coordinates.map(coord => ({ lat: coord[0], lng: coord[1] })),
+    strokeColor: '#FF0000',
     strokeOpacity: 0.8,
     strokeWeight: 2,
+    fillColor: '#FF0000',
     fillOpacity: 0.35,
     map: map,
   });
@@ -277,6 +263,5 @@ function showError(message) {
 
 // Show Place Information
 function showPlaceInformation(placeData) {
-  // Display place information, such as name and photos
   console.log("Información del lugar:", placeData);
 }
