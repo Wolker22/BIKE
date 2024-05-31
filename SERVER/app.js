@@ -44,7 +44,7 @@ const userViolations = {};
 
     const odooConfig = {
       url: 'https://bikely.csproject.org/jsonrpc',
-      db: 'CSProject',
+      db: 'odoo16',
       username: 'i12sagud@uco.es',  // This should be the user's login
       password: 'trabajosif123',   // This should be the user's password
     };
