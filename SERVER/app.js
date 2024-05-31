@@ -45,8 +45,8 @@ const userViolations = {};
     const odooConfig = {
       url: 'https://bikely.csproject.org/jsonrpc',
       db: 'CSProject',
-      uid: 'i12sagud@uco.es',
-      password: 'trabajosif123',
+      username: 'i12sagud@uco.es',  // This should be the user's login
+      password: 'trabajosif123',   // This should be the user's password
     };
 
     app.post("/validate-user", async (req, res) => {
@@ -57,17 +57,9 @@ const userViolations = {};
         jsonrpc: "2.0",
         method: "call",
         params: {
-          service: "object",
-          method: "execute_kw",
-          args: [
-            odooConfig.db,
-            odooConfig.uid,
-            odooConfig.password,
-            "res.users",
-            "search_read",
-            [["login", "=", username]],
-            ["id", "login", "password"]
-          ]
+          service: "common",
+          method: "login",
+          args: [odooConfig.db, username, password]
         },
         id: new Date().getTime()
       };
@@ -78,9 +70,7 @@ const userViolations = {};
         const response = await axios.post(odooConfig.url, payload);
         console.log("Odoo response:", response.data); // Log Odoo response
 
-        const users = response.data.result;
-
-        if (users && users.length > 0 && users[0].password === password) {
+        if (response.data.result) {
           res.status(200).json({ valid: true });
         } else {
           res.status(401).json({ valid: false }); // Use 401 for unauthorized
