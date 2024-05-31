@@ -4,7 +4,6 @@ const fs = require("fs");
 const cors = require("cors");
 const WebSocket = require("ws");
 const path = require("path");
-const axios = require("axios");
 const locationsRouter = require("./routes/locations");
 const geofenceRouter = require("./routes/geofence");
 const connectDB = require('./config/db');
@@ -27,6 +26,7 @@ const userViolations = {};
     await connectDB();
     console.log('MongoDB connected...');
 
+    // CORS configuration
     const corsOptions = {
       origin: 'https://bikely.mooo.com:3000',
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -34,68 +34,138 @@ const userViolations = {};
       credentials: true,
     };
     app.use(cors(corsOptions));
-    app.options('*', cors(corsOptions));
+    app.options('*', cors(corsOptions)); // Handle all OPTIONS requests globally
 
     app.use(express.json());
+
+    // Define routes
     app.use("/client", express.static(path.join(__dirname, "../client")));
     app.use("/company", express.static(path.join(__dirname, "../company")));
     app.use("/locations", locationsRouter);
     app.use("/geofence", geofenceRouter);
 
-    const odooConfig = {
-      url: 'https://bikely.csproject.org/jsonrpc',
-      db: 'CSProject',
-      uid: 'i12sagud@uco.es',
-      password: 'trabajosif123',
-    };
+    app.get("/odoo/username", (req, res) => {
+      res.status(200).json({ username: "testUser" });
+    });
 
-    app.post("/validate-user", async (req, res) => {
-      const { username, password } = req.body;
+    app.post("/geofence/penalties", async (req, res) => {
+      const { coords } = req.body;
+      const penalties = await calculatePenaltiesForUsers(coords);
+      res.status(200).json(penalties);
+    });
 
-      try {
-        const response = await axios.post(odooConfig.url, {
-          jsonrpc: "2.0",
-          method: "call",
-          params: {
-            service: "object",
-            method: "execute_kw",
-            args: [
-              odooConfig.db,
-              odooConfig.uid,
-              odooConfig.password,
-              "res.users",
-              "search_read",
-              [["login", "=", username]],
-              ["id", "login", "password"]
-            ]
-          },
-          id: new Date().getTime()
-        });
+    app.post("/geofence", (req, res) => {
+      const { geofenceId, name, coordinates } = req.body;
+      broadcastToClients({ type: "geofence", data: { geofenceId, name, coordinates } });
+      res.sendStatus(200);
+    });
 
-        if (response.data.result.length > 0 && response.data.result[0].password === password) {
-          res.status(200).json({ valid: true });
+    async function calculatePenaltiesForUsers(coords) {
+      const users = await getUsersWithinGeofence(coords);
+      const currentTime = new Date();
+
+      const penalties = users.map((user) => {
+        if (!userViolations[user.username]) {
+          userViolations[user.username] = { violations: 0, enterTime: currentTime, locations: [], outsideGeofenceStart: null };
+        }
+
+        const userViolation = userViolations[user.username];
+        const userInsideGeofence = isWithinGeofence(user.location, coords);
+
+        if (!userInsideGeofence) {
+          if (!userViolation.outsideGeofenceStart) {
+            userViolation.outsideGeofenceStart = currentTime;
+          } else if (currentTime - userViolation.outsideGeofenceStart >= 30000) { // 30 seconds
+            userViolation.violations += 1;
+            userViolation.outsideGeofenceStart = null; // Reset the timer
+            userViolation.locations.push(user.location);
+
+            return {
+              username: user.username,
+              reason: "Outside geofence",
+              violations: userViolation.violations,
+              duration: currentTime - userViolation.enterTime,
+              locations: userViolation.locations,
+            };
+          }
         } else {
-          res.status(404).json({ valid: false });
+          userViolation.outsideGeofenceStart = null; // Reset if user is back inside
         }
-      } catch (error) {
-        console.error("Error connecting to Odoo:", error);
-        res.status(500).json({ valid: false, error: "Internal Server Error" });
-      }
-    });
 
-    // WebSocket handlers
-    wss.on('connection', (ws, req) => {
-      ws.on('message', (message) => {
-        const data = JSON.parse(message);
-        if (data.type === 'register') {
-          clients[data.username] = ws;
+        return null;
+      }).filter(penalty => penalty !== null);
+
+      penalties.forEach((penalty) => {
+        if (clients[penalty.username]) {
+          clients[penalty.username].send(JSON.stringify({ type: "penalty", data: penalty }));
         }
       });
 
-      ws.on('close', () => {
-        // Handle disconnection
+      return penalties;
+    }
+
+    function isWithinGeofence(location, geofenceCoords) {
+      // Implement your geofence check logic here
+      return true; // Placeholder implementation
+    }
+
+    async function getUsersWithinGeofence(coords) {
+      // Query your database to get users within the geofence
+      return [
+        { username: "usuario1", location: { lat: 37.914954, lng: -4.716284 } },
+      ];
+    }
+
+    app.post("/company/location", async (req, res) => {
+      const { location, username } = req.body;
+      console.log("Received coordinates:", location);
+      console.log("User:", username);
+      // Store location in the database
+      broadcastToClients({
+        type: "locationUpdate",
+        data: { username, location, enterTime: new Date() }
+      });
+      res.sendStatus(200);
+    });
+
+    wss.on("connection", (ws) => {
+      ws.on("message", (message) => {
+        const parsedMessage = JSON.parse(message);
+        if (parsedMessage.type === "register") {
+          clients[parsedMessage.username] = ws;
+          sendUserList();
+        } else if (parsedMessage.type === "usageTime") {
+          if (userViolations[parsedMessage.username]) {
+            userViolations[parsedMessage.username].usageTime = parsedMessage.usageTime;
+            broadcastToClients({
+              type: "usageTimeUpdate",
+              data: { username: parsedMessage.username, usageTime: parsedMessage.usageTime }
+            });
+          }
+        }
+      });
+
+      ws.on("close", () => {
+        for (const [username, clientWs] of Object.entries(clients)) {
+          if (clientWs === ws) {
+            delete clients[username];
+            sendUserList();
+            break;
+          }
+        }
       });
     });
+
+    function sendUserList() {
+      const users = Object.keys(clients).map(username => ({ username }));
+      const message = JSON.stringify({ type: "userList", data: users });
+      broadcastToClients(message);
+    }
+
+    function broadcastToClients(message) {
+      const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
+      Object.values(clients).forEach(client => client.send(messageStr));
+    }
 
     const PORT = process.env.PORT || 3000;
     server.listen(PORT, () => {
@@ -107,4 +177,3 @@ const userViolations = {};
     process.exit(1);
   }
 })();
-
