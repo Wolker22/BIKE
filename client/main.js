@@ -150,7 +150,6 @@ async function validateUsername(username) {
   }
 }
 
-// Validate User
 async function validateUser(username, password) {
   try {
     const response = await fetch("https://bikely.mooo.com:3000/validate-user", {
@@ -158,7 +157,9 @@ async function validateUser(username, password) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password })
     });
-    const result = await response.json();
+    const text = await response.text(); // Capture response as text for debugging
+    console.log("Response text:", text); // Log the raw response text
+    const result = JSON.parse(text); // Parse the text as JSON
     return result.valid;
   } catch (error) {
     console.error("Error validando el nombre de usuario y contraseña:", error);
