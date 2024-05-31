@@ -154,115 +154,51 @@ function checkGeofenceViolation(username, location) {
 
 function renderUserList() {
   const userListContainer = document.getElementById("user-list");
-  if (!userListContainer) {
-    console.error("User list container not found");
-    return;
-  }
-  userListContainer.innerHTML = "";
+  if (!userListContainer) return;
+
+  userListContainer.innerHTML = '';
+
   Object.keys(users).forEach(username => {
     const user = users[username];
-    const userElement = document.createElement("li");
-    userElement.innerHTML = `
-      <strong>Username:</strong> ${username}<br>
-      <strong>Penalties:</strong> ${user.penalties}<br>
-      <strong>Usage Time:</strong> ${user.usageTime} seconds<br>
-      <strong>Location:</strong> Latitude: ${user.marker.getPosition().lat()}, Longitude: ${user.marker.getPosition().lng()}<br>
-      <strong>Status:</strong> ${user.isConnected ? 'Connected' : 'Disconnected'}<br>
-      <button onclick="stopUserUsageTimer('${username}')">Stop Timer</button>
-      <button onclick="generateExcelForUser('${username}')">Generate Excel</button>
+    const userItem = document.createElement("div");
+    userItem.className = "user-item";
+
+    userItem.innerHTML = `
+      <span>${username}</span>
+      <span>Penalties: ${user.penalties}</span>
+      <span>Usage Time: ${user.usageTime}</span>
+      <span>Status: ${user.isConnected ? 'Connected' : 'Disconnected'}</span>
     `;
-    userListContainer.appendChild(userElement);
+
+    userListContainer.appendChild(userItem);
   });
 }
 
-function stopUserUsageTimer(username) {
-  if (usageTimers[username]) {
-    clearInterval(usageTimers[username]);
-    delete usageTimers[username];
-    console.log(`Timer stopped for user ${username}`);
-  }
-}
-
-function generateExcelForUser(username) {
-  const user = users[username];
-  if (!user) {
-    console.error(`User ${username} not found`);
-    return;
-  }
-
-  const userData = [
-    ['Username', 'Penalties', 'Usage Time'],
-    [
-      username,
-      user.penalties,
-      user.usageTime,
-    ]
-  ];
-
-  const worksheet = XLSX.utils.aoa_to_sheet(userData);
-  const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'User Data');
-  
-  XLSX.writeFile(workbook, `${username}_data.xlsx`);
-
-  user.usageTime = 0;
-  saveUserUsageTime(username, 0);
-  renderUserList();
-}
-
-function updateUserUsageTime(data) {
-  const { username, usageTime } = data;
-  if (users[username]) {
-    users[username].usageTime = usageTime;
-    saveUserUsageTime(username, usageTime);
-  }
-  renderUserList();
-}
-
 function startUserUsageTimer(username) {
-  if (!users[username]) return;
-
   if (usageTimers[username]) {
     clearInterval(usageTimers[username]);
   }
 
-  const updateUsageTime = () => {
-    if (users[username] && users[username].isConnected) {
+  usageTimers[username] = setInterval(() => {
+    if (users[username]) {
       users[username].usageTime += 1;
       saveUserUsageTime(username, users[username].usageTime);
-      socket.send(JSON.stringify({ type: "usageTimeUpdate", data: { username, usageTime: users[username].usageTime } }));
       renderUserList();
     }
-  };
-
-  usageTimers[username] = setInterval(updateUsageTime, 1000);
+  }, 1000);
 }
 
-function startLocationUpdateTimer() {
-  setInterval(() => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: "requestLocationUpdates" }));
-    } else {
-      console.error("Socket is not open or undefined.");
-    }
-  }, locationUpdateInterval);
+function saveUserUsageTime(username, usageTime) {
+  localStorage.setItem(`usageTime_${username}`, usageTime);
+}
+
+function loadUserUsageTime(username) {
+  return parseInt(localStorage.getItem(`usageTime_${username}`), 10);
 }
 
 function markUsersAsDisconnected() {
   Object.keys(users).forEach(username => {
     users[username].isConnected = false;
-    if (usageTimers[username]) {
-      clearInterval(usageTimers[username]);
-      delete usageTimers[username];
-    }
   });
   renderUserList();
-}
-
-function saveUserUsageTime(username, usageTime) {
-  localStorage.setItem(`userUsageTime_${username}`, usageTime);
-}
-
-function loadUserUsageTime(username) {
-  return parseInt(localStorage.getItem(`userUsageTime_${username}`)) || 0;
 }

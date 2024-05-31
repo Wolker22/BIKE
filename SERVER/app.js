@@ -45,13 +45,13 @@ const userViolations = {};
     const odooConfig = {
       url: 'https://bikely.csproject.org/jsonrpc',
       db: 'odoo16',
-      username: 'i12sagud@uco.es',  // This should be the user's login
-      password: 'trabajosif123',   // This should be the user's password
+      username: 'i12sagud@uco.es',
+      password: 'trabajosif123',
     };
 
     app.post("/validate-user", async (req, res) => {
       const { username, password } = req.body;
-      console.log("Received username:", username); // Log received username
+      console.log("Received username:", username);
 
       const payload = {
         jsonrpc: "2.0",
@@ -64,58 +64,55 @@ const userViolations = {};
         id: new Date().getTime()
       };
 
-      console.log("Odoo request payload:", payload); // Log the request payload
+      console.log("Odoo request payload:", payload);
 
       try {
         const response = await axios.post(odooConfig.url, payload);
-        console.log("Odoo response:", response.data); // Log Odoo response
+        console.log("Odoo response:", response.data);
 
         if (response.data.result) {
           res.status(200).json({ valid: true });
         } else {
-          res.status(401).json({ valid: false }); // Use 401 for unauthorized
+          res.status(401).json({ valid: false });
         }
       } catch (error) {
         console.error("Error connecting to Odoo:", error);
-        if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
-          console.error("Error response data:", error.response.data);
-          console.error("Error response status:", error.response.status);
-          console.error("Error response headers:", error.response.headers);
-        } else if (error.request) {
-          // The request was made but no response was received
-          console.error("Error request:", error.request);
-        } else {
-          // Something happened in setting up the request that triggered an Error
-          console.error("Error message:", error.message);
-        }
         res.status(500).json({ valid: false, error: "Internal Server Error", details: error.message });
       }
     });
 
-    // Define the /company/location route
     app.post("/company/location", (req, res) => {
       const { location, username } = req.body;
       console.log("Received location data:", location, "from user:", username);
-      
-      // Perform any necessary operations with the location data here
-      // For example, you could save it to the database or perform some validation
+
+      if (clients[username]) {
+        clients[username].send(JSON.stringify({
+          type: 'locationUpdate',
+          data: { username, location }
+        }));
+      }
 
       res.status(200).json({ success: true, message: "Location received" });
     });
 
-    // WebSocket handlers
     wss.on('connection', (ws, req) => {
+      console.log("New WebSocket connection");
+
       ws.on('message', (message) => {
+        console.log("Message received from client:", message);
         const data = JSON.parse(message);
         if (data.type === 'register') {
           clients[data.username] = ws;
+          console.log(`Client registered: ${data.username}`);
         }
       });
 
       ws.on('close', () => {
-        // Handle disconnection
+        console.log("WebSocket connection closed");
+      });
+
+      ws.on('error', (error) => {
+        console.error("WebSocket error:", error);
       });
     });
 
