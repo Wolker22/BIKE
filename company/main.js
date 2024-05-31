@@ -208,73 +208,31 @@ function stopUserUsageTimer(username) {
 
 function generateExcelForUser(username) {
   const user = users[username];
-  if (!user) {
-    console.error(`User ${username} not found`);
-    return;
-  }
-
-  const userData = [
-    ['Username', 'Penalties', 'Usage Time'],
-    [username, user.penalties, user.usageTime]
+  const data = [
+    ["Username", "Penalties", "Usage Time (seconds)", "Latitude", "Longitude"],
+    [username, user.penalties, user.usageTime, user.marker.getPosition().lat(), user.marker.getPosition().lng()]
   ];
 
-  const worksheet = XLSX.utils.aoa_to_sheet(userData);
+  const worksheet = XLSX.utils.aoa_to_sheet(data);
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'User Data');
-  
-  XLSX.writeFile(workbook, `${username}_data.xlsx`);
-
-  // Reset user's usage time to 0 after generating the Excel file
-  user.usageTime = 0;
-  saveUserUsageTime(username, 0);
-  renderUserList();
-}
-
-function updateUserUsageTime(data) {
-  const { username, usageTime } = data;
-  if (users[username]) {
-    users[username].usageTime = usageTime;
-    saveUserUsageTime(username, usageTime);
-  }
-  renderUserList();
-}
-
-function startUserUsageTimer(username) {
-  if (!users[username]) return;
-
-  if (usageTimers[username]) {
-    clearInterval(usageTimers[username]);
-  }
-
-  usageTimers[username] = setInterval(() => {
-    if (users[username] && users[username].isConnected) {
-      users[username].usageTime += 1;
-      saveUserUsageTime(username, users[username].usageTime);
-      socket.send(JSON.stringify({ type: "usageTimeUpdate", data: { username, usageTime: users[username].usageTime } }));
-      renderUserList();
-    }
-  }, 1000);
+  XLSX.utils.book_append_sheet(workbook, worksheet, "User Data");
+  const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+  saveAs(new Blob([excelBuffer], { type: "application/octet-stream" }), `${username}_data.xlsx`);
 }
 
 function startLocationUpdateTimer() {
   setInterval(() => {
-    if (socket && socket.readyState === WebSocket.OPEN) {
-      socket.send(JSON.stringify({ type: "requestLocationUpdates" }));
-    } else {
-      console.error("Socket is not open or undefined.");
-    }
+    socket.send(JSON.stringify({ type: "requestLocationUpdates" }));
   }, locationUpdateInterval);
 }
 
-function markUsersAsDisconnected() {
-  Object.keys(users).forEach(username => {
-    users[username].isConnected = false;
-    if (usageTimers[username]) {
-      clearInterval(usageTimers[username]);
-      delete usageTimers[username];
-    }
-  });
-  renderUserList();
+function startUserUsageTimer(username) {
+  if (!usageTimers[username]) {
+    usageTimers[username] = setInterval(() => {
+      users[username].usageTime += 1;
+      saveUserUsageTime(username, users[username].usageTime);
+    }, 1000);
+  }
 }
 
 function saveUserUsageTime(username, usageTime) {
@@ -292,18 +250,34 @@ function loadUserUsageTimesFromLocal() {
 }
 
 function uploadGeofence(coordinates) {
-  fetch('/geofence', {
+  const geofenceName = prompt("Enter a name for the geofence:");
+
+  if (!geofenceName) {
+    alert("Geofence name is required.");
+    return;
+  }
+
+  const geofenceData = {
+    name: geofenceName,
+    coordinates: coordinates
+  };
+
+  fetch('https://bikely.mooo.com:3000/geofence', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ coordinates }),
+    body: JSON.stringify(geofenceData),
   })
-    .then(response => response.json())
-    .then(data => {
+  .then(response => response.json())
+  .then(data => {
+    if (data.error) {
+      console.error('Error uploading geofence:', data.error);
+    } else {
       console.log('Geofence uploaded successfully:', data);
-    })
-    .catch(error => {
-      console.error('Error uploading geofence:', error);
-    });
+    }
+  })
+  .catch(error => {
+    console.error('Error uploading geofence:', error);
+  });
 }
