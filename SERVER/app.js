@@ -5,6 +5,7 @@ const cors = require("cors");
 const WebSocket = require("ws");
 const path = require("path");
 const axios = require("axios");
+const { Client } = require("odoo-xmlrpc");
 const locationsRouter = require("./routes/locations");
 const geofenceRouter = require("./routes/geofence");
 const connectDB = require('./config/db');
@@ -20,6 +21,21 @@ const wss = new WebSocket.Server({ server });
 
 let clients = {};
 const userViolations = {};
+
+// Configurar conexión a Odoo
+const odooConfig = {
+  url: 'https://bikely.csproject.org/jsonrpc',
+  db: 'odoo16',
+  username: 'i12sagud@uco.es', // Usuario de Odoo
+  password: 'trabajosif123',   // Contraseña de Odoo
+};
+
+const odoo = new Client({
+  url: odooConfig.url,
+  db: odooConfig.db,
+  username: odooConfig.username,
+  password: odooConfig.password
+});
 
 // Conectar a la base de datos
 (async () => {
@@ -42,16 +58,10 @@ const userViolations = {};
     app.use("/locations", locationsRouter);
     app.use("/geofence", geofenceRouter);
 
-    const odooConfig = {
-      url: 'https://bikely.csproject.org/jsonrpc',
-      db: 'odoo16',
-      username: 'i12sagud@uco.es', // Usuario de Odoo
-      password: 'trabajosif123',   // Contraseña de Odoo
-    };
-
+    // Ruta para validar usuario en Odoo
     app.post("/validate-user", async (req, res) => {
       const { username, password } = req.body;
-      console.log("Received username:", username); // Log received username
+      console.log("Received username:", username);
 
       const payload = {
         jsonrpc: "2.0",
@@ -64,41 +74,29 @@ const userViolations = {};
         id: new Date().getTime()
       };
 
-      console.log("Odoo request payload:", payload); // Log the request payload
+      console.log("Odoo request payload:", payload);
 
       try {
         const response = await axios.post(odooConfig.url, payload);
-        console.log("Odoo response:", response.data); // Log Odoo response
+        console.log("Odoo response:", response.data);
 
         if (response.data.result) {
           res.status(200).json({ valid: true });
         } else {
-          res.status(401).json({ valid: false }); // Use 401 for unauthorized
+          res.status(401).json({ valid: false });
         }
       } catch (error) {
         console.error("Error connecting to Odoo:", error);
-        if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
-          console.error("Error response data:", error.response.data);
-          console.error("Error response status:", error.response.status);
-          console.error("Error response headers:", error.response.headers);
-        } else if (error.request) {
-          // The request was made but no response was received
-          console.error("Error request:", error.request);
-        } else {
-          // Something happened in setting up the request that triggered an Error
-          console.error("Error message:", error.message);
-        }
         res.status(500).json({ valid: false, error: "Internal Server Error", details: error.message });
       }
     });
 
+    // Ruta para recibir la ubicación de la compañía
     app.post("/company/location", async (req, res) => {
       const { location, username } = req.body;
       console.log("Received coordinates:", location);
       console.log("User:", username);
-      // Store location in the database
+
       broadcastToClients({
         type: "locationUpdate",
         data: { username, location, enterTime: new Date() }
@@ -106,6 +104,42 @@ const userViolations = {};
       res.sendStatus(200);
     });
 
+    // Ruta para generar una factura en Odoo
+    app.post('/generate-invoice', async (req, res) => {
+      const { username, penalties, usageTime } = req.body;
+
+      try {
+        // Autenticación en Odoo
+        await odoo.connect();
+
+        // Datos de la factura
+        const invoiceData = {
+          partner_id: 1, // ID del cliente en Odoo
+          type: 'out_invoice',
+          invoice_line_ids: [
+            [0, 0, {
+              name: `Penalties for user ${username}`,
+              quantity: penalties,
+              price_unit: 10 // Precio por penalización
+            }],
+            [0, 0, {
+              name: `Usage time for user ${username}`,
+              quantity: usageTime,
+              price_unit: 1 // Precio por unidad de tiempo de uso
+            }]
+          ]
+        };
+
+        // Crear la factura
+        const response = await odoo.execute_kw('account.move', 'create', [invoiceData]);
+        res.status(200).json({ invoiceId: response });
+      } catch (error) {
+        console.error('Error creating invoice in Odoo:', error);
+        res.status(500).json({ error: 'Failed to create invoice' });
+      }
+    });
+
+    // Configurar WebSocket
     wss.on("connection", (ws) => {
       ws.on("message", (message) => {
         const parsedMessage = JSON.parse(message);
