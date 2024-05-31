@@ -178,14 +178,11 @@ function generateExcelForUser(username) {
   }
 
   const userData = [
-    ['Username', 'Penalties', 'Usage Time', 'Latitude', 'Longitude', 'Status'],
+    ['Username', 'Penalties', 'Usage Time'],
     [
       username,
       user.penalties,
       user.usageTime,
-      user.marker.getPosition().lat(),
-      user.marker.getPosition().lng(),
-      user.isConnected ? 'Connected' : 'Disconnected'
     ]
   ];
 
