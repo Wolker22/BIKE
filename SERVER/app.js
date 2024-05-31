@@ -76,12 +76,11 @@ const userViolations = {};
 
       try {
         const response = await axios.post(odooConfig.url, payload);
-
         console.log("Odoo response:", response.data); // Log Odoo response
 
         const users = response.data.result;
 
-        if (users.length > 0 && users[0].password === password) {
+        if (users && users.length > 0 && users[0].password === password) {
           res.status(200).json({ valid: true });
         } else {
           res.status(401).json({ valid: false }); // Use 401 for unauthorized
