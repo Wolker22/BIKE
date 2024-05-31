@@ -169,31 +169,19 @@ async function validateUser(username, password) {
 
 // Start Updating Location
 async function startUpdatingLocation() {
-  try {
-    const userLocation = await getUserLocation();
-    map.setCenter(userLocation);
-    map.setZoom(19);
-
-    if (!userMarker) {
-      userMarker = new google.maps.Marker({
-        position: userLocation,
-        map: map,
-      });
-      console.log("Marcador del usuario creado en:", userLocation);
-    } else {
-      userMarker.setPosition(userLocation);
-      console.log("Marcador del usuario actualizado a:", userLocation);
-    }
-
+  if (navigator.geolocation) {
     intervalId = setInterval(async () => {
-      const userLocation = await getUserLocation();
-      userMarker.setPosition(userLocation);
-      console.log("Marcador del usuario actualizado a (intervalo):", userLocation);
-      await sendLocationToBackend(userLocation);
+      try {
+        const position = await getCurrentPosition();
+        const location = { lat: position.coords.latitude, lng: position.coords.longitude };
+        updateUserLocationOnMap(location);
+        await sendLocationToBackend(location);
+      } catch (error) {
+        console.error("Error obteniendo la ubicación actual:", error);
+      }
     }, 5000); // Update every 5 seconds
-  } catch (error) {
-    console.error("Error en startUpdatingLocation:", error);
-    showError("No se pudo obtener su ubicación.");
+  } else {
+    showError("La geolocalización no es compatible con este navegador.");
   }
 }
 
@@ -238,12 +226,7 @@ async function sendLocationToBackend(location) {
 
 // Show Error
 function showError(message) {
-  const errorElement = document.getElementById("error-message");
-  errorElement.textContent = message;
-  errorElement.style.display = "block";
-  setTimeout(() => {
-    errorElement.style.display = "none";
-  }, 3000);
+  alert(message);
 }
 
 // Draw Geofence
@@ -293,30 +276,11 @@ function traceRouteToPlace(destination, placeName, placePhotoUrl) {
 
 // Show Penalty Notification
 function showPenaltyNotification(penaltyData) {
-  const penaltyElement = document.createElement("div");
-  penaltyElement.className = "penalty-notification";
-  penaltyElement.textContent = `Penalización: ${penaltyData.message}`;
-  document.body.appendChild(penaltyElement);
-
+  const notification = document.createElement("div");
+  notification.className = "penalty-notification";
+  notification.textContent = `¡Penalización! Motivo: ${penaltyData.reason}`;
+  document.body.appendChild(notification);
   setTimeout(() => {
-    penaltyElement.remove();
+    document.body.removeChild(notification);
   }, 5000);
-}
-
-// Update Usage Time
-function updateUsageTime(usageTime) {
-  const usageTimeElement = document.getElementById("usage-time");
-  usageTimeElement.textContent = `Tiempo de uso: ${usageTime} minutos`;
-}
-
-// Get User Location
-async function getUserLocation() {
-  try {
-    const position = await getCurrentPosition();
-    const { latitude, longitude } = position.coords;
-    return { lat: latitude, lng: longitude };
-  } catch (error) {
-    console.error("Error obteniendo la ubicación del usuario:", error);
-    throw error;
-  }
 }
