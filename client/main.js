@@ -242,16 +242,25 @@ async function sendLocationToBackend(location) {
 
 // Show Error
 function showError(message) {
-  alert(message);
+  if (!document.getElementById("error-message")) {
+    const errorMessage = document.createElement("div");
+    errorMessage.id = "error-message";
+    errorMessage.textContent = message;
+    document.body.appendChild(errorMessage);
+    setTimeout(() => {
+      document.body.removeChild(errorMessage);
+    }, 5000);
+  }
 }
 
 // Draw Geofence
 function drawGeofence(data) {
+  // Definir las coordenadas de la geocerca para Córdoba
   const geofenceCoordinates = [
-    { lat: 37.88562, lng: -4.77867 },
-    { lat: 37.88572, lng: -4.77848 },
-    { lat: 37.88580, lng: -4.77862 },
-    { lat: 37.88569, lng: -4.77881 }
+    { lat: 37.888175, lng: -4.779383 },
+    { lat: 37.889175, lng: -4.779383 },
+    { lat: 37.889175, lng: -4.778383 },
+    { lat: 37.888175, lng: -4.778383 }
   ];
 
   if (geofencePolygon) {
