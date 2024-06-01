@@ -49,6 +49,31 @@ const userViolations = {};
       password: 'trabajosif123',   // Contraseña de Odoo
     };
 
+    async function getOdooUid() {
+      const payload = {
+        jsonrpc: "2.0",
+        method: "call",
+        params: {
+          service: "common",
+          method: "login",
+          args: [odooConfig.db, odooConfig.username, odooConfig.password]
+        },
+        id: new Date().getTime()
+      };
+
+      try {
+        const response = await axios.post(odooConfig.url, payload);
+        if (response.data.result) {
+          return response.data.result;
+        } else {
+          throw new Error("Failed to authenticate with Odoo");
+        }
+      } catch (error) {
+        console.error("Error connecting to Odoo:", error);
+        throw error;
+      }
+    }
+
     app.post("/validate-user", async (req, res) => {
       const { username, password } = req.body;
       console.log("Received username:", username); // Log received username
@@ -105,28 +130,30 @@ const userViolations = {};
     app.post("/company/create-invoice", async (req, res) => {
       const { username, penalties, usageTime } = req.body;
 
-      const invoiceData = {
-        partner_id: 1, // ID del cliente en Odoo, cámbialo según tus necesidades
-        move_type: 'out_invoice',
-        invoice_line_ids: [
-          [0, 0, {
-            name: `Usage time and penalties for user ${username}`,
-            quantity: 1,
-            price_unit: (penalties * 10) + (usageTime * 0.5) // Precio por penalización y uso (modifica según tus necesidades)
-          }]
-        ]
-      };
-
-      console.log("Invoice data:", invoiceData); // Log invoice data
-
       try {
+        const uid = await getOdooUid(); // Get the uid
+
+        const invoiceData = {
+          partner_id: 1, // ID del cliente en Odoo, cámbialo según tus necesidades
+          move_type: 'out_invoice',
+          invoice_line_ids: [
+            [0, 0, {
+              name: `Usage time and penalties for user ${username}`,
+              quantity: 1,
+              price_unit: (penalties * 10) + (usageTime * 0.5) // Precio por penalización y uso (modifica según tus necesidades)
+            }]
+          ]
+        };
+
+        console.log("Invoice data:", invoiceData); // Log invoice data
+
         const response = await axios.post(odooConfig.url, {
           jsonrpc: "2.0",
           method: "call",
           params: {
             service: "object",
             method: "execute_kw",
-            args: [odooConfig.db, odooConfig.username, odooConfig.password, "account.move", "create", [invoiceData]]
+            args: [odooConfig.db, uid, odooConfig.password, "account.move", "create", [invoiceData]]
           },
           id: new Date().getTime()
         });
