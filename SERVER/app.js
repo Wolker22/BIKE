@@ -124,9 +124,9 @@ const userViolations = {};
           jsonrpc: "2.0",
           method: "call",
           params: {
-            model: "account.move",
-            method: "create",
-            args: [invoiceData]
+            service: "object",
+            method: "execute_kw",
+            args: [odooConfig.db, odooConfig.username, odooConfig.password, "account.move", "create", [invoiceData]]
           },
           id: new Date().getTime()
         });
