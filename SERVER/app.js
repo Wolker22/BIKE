@@ -49,114 +49,61 @@ const userViolations = {};
       password: 'trabajosif123',   // Contraseña de Odoo
     };
 
-    async function authenticateOdoo() {
-      const authPayload = {
+    app.post("/validate-user", async (req, res) => {
+      const { username, password } = req.body;
+      console.log("Received username:", username); // Log received username
+
+      const payload = {
         jsonrpc: "2.0",
         method: "call",
         params: {
           service: "common",
           method: "login",
-          args: [odooConfig.db, odooConfig.username, odooConfig.password]
+          args: [odooConfig.db, username, password]
         },
         id: new Date().getTime()
       };
 
-      const response = await axios.post(odooConfig.url, authPayload);
-      if (response.data.result) {
-        return response.data.result;
-      } else {
-        throw new Error("Authentication failed");
-      }
-    }
+      console.log("Odoo request payload:", payload); // Log the request payload
 
-    async function getPartnerId(username, uid) {
-      const partnerPayload = {
-        jsonrpc: "2.0",
-        method: "call",
-        params: {
-          model: "res.partner",
-          method: "search",
-          args: [[["name", "=", username]]],
-          kwargs: { context: { uid } },
-        },
-        id: new Date().getTime(),
-      };
-
-      const response = await axios.post(odooConfig.url, partnerPayload);
-      if (response.data.result && response.data.result.length > 0) {
-        return response.data.result[0];
-      } else {
-        throw new Error(`Partner with username ${username} not found`);
-      }
-    }
-
-    async function createInvoice(username, penalties, usageTime) {
       try {
-        const uid = await authenticateOdoo();
-        const partnerId = await getPartnerId(username, uid);
-        const invoicePayload = {
-          jsonrpc: "2.0",
-          method: "call",
-          params: {
-            model: "account.move",
-            method: "create",
-            args: [
-              {
-                type: "out_invoice",
-                partner_id: partnerId,
-                invoice_line_ids: [
-                  [
-                    0,
-                    0,
-                    {
-                      name: "Bicycle usage",
-                      quantity: 1,
-                      price_unit: usageTime,
-                    },
-                  ],
-                  [
-                    0,
-                    0,
-                    {
-                      name: "Penalties",
-                      quantity: penalties,
-                      price_unit: 5,
-                    },
-                  ],
-                ],
-              },
-            ],
-            kwargs: { context: { uid } },
-          },
-          id: new Date().getTime(),
-        };
+        const response = await axios.post(odooConfig.url, payload);
+        console.log("Odoo response:", response.data); // Log Odoo response
 
-        const response = await axios.post(odooConfig.url, invoicePayload);
         if (response.data.result) {
-          console.log("Invoice created successfully:", response.data.result);
+          res.status(200).json({ valid: true });
         } else {
-          throw new Error("Failed to create invoice");
+          res.status(401).json({ valid: false }); // Use 401 for unauthorized
         }
       } catch (error) {
-        console.error("Error creating invoice:", error);
+        console.error("Error connecting to Odoo:", error);
+        if (error.response) {
+          // The request was made and the server responded with a status code
+          // that falls out of the range of 2xx
+          console.error("Error response data:", error.response.data);
+          console.error("Error response status:", error.response.status);
+          console.error("Error response headers:", error.response.headers);
+        } else if (error.request) {
+          // The request was made but no response was received
+          console.error("Error request:", error.request);
+        } else {
+          // Something happened in setting up the request that triggered an Error
+          console.error("Error message:", error.message);
+        }
+        res.status(500).json({ valid: false, error: "Internal Server Error", details: error.message });
       }
-    }
+    });
 
-    app.post("/generate-invoice", async (req, res) => {
-      const { username } = req.body;
-      const user = clients[username];
-      if (!user) {
-        res.status(404).json({ error: "User not found" });
-        return;
-      }
-
-      const { penalties, usageTime } = userViolations[username] || { penalties: 0, usageTime: 0 };
-      try {
-        await createInvoice(username, penalties, usageTime);
-        res.status(200).json({ message: "Invoice created successfully" });
-      } catch (error) {
-        res.status(500).json({ error: "Error creating invoice", details: error.message });
-      }
+    app.post("/company/location", async (req, res) => {
+      const { location, username } = req.body;
+      console.log("Received coordinates:", location);
+      console.log("User:", username);
+      // Store location in the database
+      broadcastToClients({
+        type: "locationUpdate",
+        data: { username, location, enterTime: new Date() }
+      });
+      res.sendStatus(200);
     });
 
     wss.on("connection", (ws) => {
@@ -188,23 +135,23 @@ const userViolations = {};
     });
 
     function sendUserList() {
-      const usersData = Object.keys(clients).map(username => {
-        return { username };
-      });
-      broadcastToClients({ type: "userList", data: usersData });
+      const users = Object.keys(clients).map(username => ({ username }));
+      const message = JSON.stringify({ type: "userList", data: users });
+      broadcastToClients(message);
     }
 
     function broadcastToClients(message) {
-      Object.values(clients).forEach(client => {
-        client.send(JSON.stringify(message));
-      });
+      const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
+      Object.values(clients).forEach(client => client.send(messageStr));
     }
 
-    server.listen(443, () => {
-      console.log('Server running on https://bikely.mooo.com');
+    const PORT = process.env.PORT || 3000;
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
     });
-  } catch (error) {
-    console.error('Error connecting to MongoDB:', error.message);
+
+  } catch (err) {
+    console.error('Error connecting to MongoDB:', err.message);
     process.exit(1);
   }
 })();
