@@ -74,6 +74,40 @@ const userViolations = {};
       }
     }
 
+    async function getPartnerId(username) {
+      const uid = await getOdooUid();
+      const payload = {
+        jsonrpc: "2.0",
+        method: "call",
+        params: {
+          service: "object",
+          method: "execute_kw",
+          args: [
+            odooConfig.db,
+            uid,
+            odooConfig.password,
+            'res.partner',
+            'search_read',
+            [[['email', '=', username]]],  // Search for partner by email
+            ['id']  // Retrieve only the ID field
+          ]
+        },
+        id: new Date().getTime()
+      };
+
+      try {
+        const response = await axios.post(odooConfig.url, payload);
+        if (response.data.result && response.data.result.length > 0) {
+          return response.data.result[0].id;  // Return the ID of the first match
+        } else {
+          throw new Error("Partner not found");
+        }
+      } catch (error) {
+        console.error("Error fetching partner ID from Odoo:", error);
+        throw error;
+      }
+    }
+
     app.post("/validate-user", async (req, res) => {
       const { username, password } = req.body;
       console.log("Received username:", username); // Log received username
@@ -132,9 +166,10 @@ const userViolations = {};
 
       try {
         const uid = await getOdooUid(); // Get the uid
+        const partnerId = await getPartnerId(username); // Get the partner ID
 
         const invoiceData = {
-          partner_id: username, // ID del cliente en Odoo, cámbialo según tus necesidades
+          partner_id: partnerId, // ID del cliente en Odoo
           move_type: 'out_invoice',
           invoice_line_ids: [
             [0, 0, {
