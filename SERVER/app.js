@@ -78,16 +78,12 @@ const userViolations = {};
       } catch (error) {
         console.error("Error connecting to Odoo:", error);
         if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
           console.error("Error response data:", error.response.data);
           console.error("Error response status:", error.response.status);
           console.error("Error response headers:", error.response.headers);
         } else if (error.request) {
-          // The request was made but no response was received
           console.error("Error request:", error.request);
         } else {
-          // Something happened in setting up the request that triggered an Error
           console.error("Error message:", error.message);
         }
         res.status(500).json({ valid: false, error: "Internal Server Error", details: error.message });
@@ -104,6 +100,39 @@ const userViolations = {};
         data: { username, location, enterTime: new Date() }
       });
       res.sendStatus(200);
+    });
+
+    app.post("/company/create-invoice", async (req, res) => {
+      const { username, penalties, usageTime } = req.body;
+
+      const invoiceData = {
+        partner_id: 1, // ID del cliente en Odoo, cámbialo según tus necesidades
+        move_type: 'out_invoice',
+        invoice_line_ids: [
+          [0, 0, {
+            name: `Usage time and penalties for user ${username}`,
+            quantity: 1,
+            price_unit: (penalties * 10) + (usageTime * 0.5) // Precio por penalización y uso (modifica según tus necesidades)
+          }]
+        ]
+      };
+
+      try {
+        const response = await axios.post(odooConfig.url, {
+          jsonrpc: "2.0",
+          method: "call",
+          params: {
+            model: "account.move",
+            method: "create",
+            args: [invoiceData]
+          },
+          id: new Date().getTime()
+        });
+        res.status(200).json({ success: true, invoiceId: response.data.result });
+      } catch (error) {
+        console.error("Error creating invoice in Odoo:", error);
+        res.status(500).json({ success: false, error: error.message });
+      }
     });
 
     wss.on("connection", (ws) => {

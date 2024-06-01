@@ -22,7 +22,6 @@ function initMap() {
     center: coords,
   });
 
-  // Set geofence to cover all of Córdoba, Spain
   geofenceCoordinates = [
     { lat: 37.9514, lng: -4.8734 },
     { lat: 37.9514, lng: -4.6756 },
@@ -32,8 +31,8 @@ function initMap() {
 
   geofencePolygon = new google.maps.Polygon({
     paths: geofenceCoordinates,
-    strokeColor: '#FF0000', // Red color for the geofence border
-    fillOpacity: 0.2, // Transparency of the geofence area
+    strokeColor: '#FF0000',
+    fillOpacity: 0.2,
   });
   geofencePolygon.setMap(map);
 }
@@ -127,15 +126,15 @@ function updateUserLocation(data) {
       const timeOutside = Date.now() - penalties[username].startTime;
       if (timeOutside > penaltyTime) {
         socket.send(JSON.stringify({ type: "penalty", data: { username, reason: "Outside geofence" } }));
-        penalties[username].count += 1; // Increase the penalty count
-        penalties[username].startTime = Date.now(); // Reset the start time
+        penalties[username].count += 1;
+        penalties[username].startTime = Date.now();
       }
     }
   } else {
     delete penalties[username];
   }
 
-  users[username].penalties = penalties[username]?.count || 0; // Update penalties count
+  users[username].penalties = penalties[username]?.count || 0;
   renderUserList();
 }
 
@@ -157,6 +156,7 @@ function renderUserList() {
       <strong>Status:</strong> ${user.isConnected ? 'Connected' : 'Disconnected'}<br>
       <button onclick="stopUserUsageTimer('${username}')">Stop Timer</button>
       <button onclick="generateExcelForUser('${username}')">Generate Excel</button>
+      <button onclick="createInvoiceForUser('${username}')">Generate Invoice</button>
     `;
     userListContainer.appendChild(userElement);
   });
@@ -192,10 +192,47 @@ function generateExcelForUser(username) {
   
   XLSX.writeFile(workbook, `${username}_data.xlsx`);
 
-  // Reset user's usage time to 0 after generating the Excel file
   user.usageTime = 0;
   saveUserUsageTime(username, 0);
   renderUserList();
+}
+
+function createInvoiceForUser(username) {
+  const user = users[username];
+  if (!user) {
+    console.error(`User ${username} not found`);
+    return;
+  }
+
+  const invoiceData = {
+    username,
+    penalties: user.penalties,
+    usageTime: user.usageTime
+  };
+
+  fetch('/company/create-invoice', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(invoiceData),
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      alert(`Invoice created successfully with ID: ${data.invoiceId}`);
+      user.penalties = 0;
+      user.usageTime = 0;
+      saveUserUsageTime(username, 0);
+      renderUserList();
+    } else {
+      alert(`Failed to create invoice: ${data.error}`);
+    }
+  })
+  .catch(error => {
+    console.error('Error creating invoice:', error);
+    alert('Error creating invoice');
+  });
 }
 
 function updateUserUsageTime(data) {
