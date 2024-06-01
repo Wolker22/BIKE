@@ -117,6 +117,8 @@ const userViolations = {};
         ]
       };
 
+      console.log("Invoice data:", invoiceData); // Log invoice data
+
       try {
         const response = await axios.post(odooConfig.url, {
           jsonrpc: "2.0",
@@ -129,6 +131,8 @@ const userViolations = {};
           id: new Date().getTime()
         });
 
+        console.log("Odoo create invoice response:", response.data); // Log the response data
+
         if (response.data.result) {
           console.log("Invoice created successfully:", response.data.result);
           res.status(200).json({ success: true, invoiceId: response.data.result });
@@ -138,6 +142,15 @@ const userViolations = {};
         }
       } catch (error) {
         console.error("Error creating invoice in Odoo:", error);
+        if (error.response) {
+          console.error("Error response data:", error.response.data);
+          console.error("Error response status:", error.response.status);
+          console.error("Error response headers:", error.response.headers);
+        } else if (error.request) {
+          console.error("Error request:", error.request);
+        } else {
+          console.error("Error message:", error.message);
+        }
         res.status(500).json({ success: false, error: error.message });
       }
     });
@@ -191,4 +204,3 @@ const userViolations = {};
     process.exit(1);
   }
 })();
-
