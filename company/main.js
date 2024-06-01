@@ -197,17 +197,21 @@ function generateExcelForUser(username) {
   renderUserList();
 }
 
-function createInvoiceForUser(username) {
+async function createInvoiceForUser(username) {
   const user = users[username];
   if (!user) {
     console.error(`User ${username} not found`);
     return;
   }
 
+  // Obtener partner_id del usuario de Odoo
+  const partner_id = await getPartnerId(username);
+
   const invoiceData = {
     username,
     penalties: user.penalties,
-    usageTime: user.usageTime
+    usageTime: user.usageTime,
+    partner_id // Incluir partner_id
   };
 
   fetch('/company/create-invoice', {
@@ -297,3 +301,15 @@ function loadUserUsageTimesFromLocal() {
     users[username].usageTime = loadUserUsageTime(username);
   });
 }
+
+async function getPartnerId(username) {
+  try {
+    const response = await fetch(`/company/get-partner-id?username=${username}`);
+    const data = await response.json();
+    return data.partner_id;
+  } catch (error) {
+    console.error('Error fetching partner ID:', error);
+    throw new Error('Failed to fetch partner ID');
+  }
+}
+

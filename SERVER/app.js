@@ -128,19 +128,19 @@ const userViolations = {};
     });
 
     app.post("/company/create-invoice", async (req, res) => {
-      const { username, penalties, usageTime } = req.body;
+      const { username, penalties, usageTime, partner_id } = req.body; // Include partner_id in the request
 
       try {
         const uid = await getOdooUid(); // Get the uid
 
         const invoiceData = {
-          partner_id: 1, // ID del cliente en Odoo, cámbialo según tus necesidades
+          partner_id, // Use the provided partner_id
           move_type: 'out_invoice',
           invoice_line_ids: [
             [0, 0, {
               name: `Usage time and penalties for user ${username}`,
               quantity: 1,
-              price_unit: (penalties * 10) + (usageTime * 0.5) // Precio por penalización y uso (modifica según tus necesidades)
+              price_unit: (penalties * 10) + (usageTime * 0.01) // Precio por penalización y uso (modifica según tus necesidades)
             }]
           ]
         };
