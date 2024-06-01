@@ -128,7 +128,14 @@ const userViolations = {};
           },
           id: new Date().getTime()
         });
-        res.status(200).json({ success: true, invoiceId: response.data.result });
+
+        if (response.data.result) {
+          console.log("Invoice created successfully:", response.data.result);
+          res.status(200).json({ success: true, invoiceId: response.data.result });
+        } else {
+          console.error("Invoice creation failed:", response.data);
+          res.status(500).json({ success: false, error: "Failed to create invoice" });
+        }
       } catch (error) {
         console.error("Error creating invoice in Odoo:", error);
         res.status(500).json({ success: false, error: error.message });
@@ -184,3 +191,4 @@ const userViolations = {};
     process.exit(1);
   }
 })();
+
